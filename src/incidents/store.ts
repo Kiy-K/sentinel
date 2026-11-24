@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import type { FixLoopResult } from "../agent/fix-loop";
 
 export type IncidentRecord = {
   deliveryId: string;
@@ -41,6 +42,38 @@ export function recordIncident(db: Database, record: IncidentRecord): void {
       record.reproduced ? 1 : 0,
       record.testExitCode,
       record.outputTail,
+      new Date().toISOString(),
+    ],
+  );
+}
+
+export function recordFix(
+  db: Database,
+  deliveryId: string,
+  result: FixLoopResult,
+): void {
+  db.run(
+    `CREATE TABLE IF NOT EXISTS fix_runs (
+      delivery_id TEXT PRIMARY KEY,
+      status TEXT,
+      iterations INTEGER,
+      files_changed TEXT,
+      rationale TEXT,
+      last_output_tail TEXT,
+      created_at TEXT
+    )`,
+  );
+  db.run(
+    `INSERT OR REPLACE INTO fix_runs
+       (delivery_id, status, iterations, files_changed, rationale, last_output_tail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      deliveryId,
+      result.status,
+      result.iterations,
+      JSON.stringify(result.filesChanged),
+      result.rationale ?? null,
+      result.lastOutput ?? null,
       new Date().toISOString(),
     ],
   );

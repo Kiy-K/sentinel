@@ -83,3 +83,12 @@ GitHub repo (demo target)            Sprite (microVM, sleeps at $0)
 ## Explicitly out of scope (v1)
 
 Slack/Teams, multi-repo, issue watching, auto-merge, cross-incident memory, paid APIs, fixing arbitrary repos (fixture-calibrated only).
+
+## Runtime configuration (Sprite)
+
+Set in `/home/sprite/app/sentinel-runtime.env` (mode 600, sourced by `sentinel-start.sh`):
+
+- `WEBHOOK_SECRET` — GitHub webhook HMAC secret (set at D3).
+- `SENTINEL_DATA_DIR` — sqlite + work clones (default `/home/sprite/app/data`).
+- `OPENROUTER_GATEWAY_URL` — Sprites gateway URL for OpenRouter chat completions. No default; the agent fails closed (`LlmUnavailableError`) if unset.
+- `SENTINEL_ALLOWED_REPOS` — comma-separated allowlist for `owner/repo` accepted from `workflow_run` payloads (default `Kiy-K/night-shift-demo`). Fork head repos are always ignored.

@@ -22,6 +22,13 @@ export type ReproduceResult = {
   error?: string;
 };
 
+export function incidentWorkDir(deliveryId: string): string {
+  if (!/^[A-Za-z0-9-]{1,128}$/.test(deliveryId)) {
+    throw new Error(`invalid deliveryId: ${JSON.stringify(deliveryId)}`);
+  }
+  return join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", deliveryId);
+}
+
 export type ReproduceOptions = { run?: RunFn };
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -68,7 +75,7 @@ export function reproduceFailure(
     return invalid(`invalid sha: ${JSON.stringify(incident.sha)}`);
   }
 
-  const workDir = join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", incident.deliveryId);
+  const workDir = incidentWorkDir(incident.deliveryId);
   const run = opts?.run ?? defaultRun;
   let output = "";
 
@@ -96,7 +103,7 @@ export function reproduceFailure(
       }
     }
 
-    const install = run(["bun", "install"], workDir, INSTALL_TIMEOUT_MS);
+    const install = run(["bun", "install", "--ignore-scripts"], workDir, INSTALL_TIMEOUT_MS);
     output += install.output;
     if (install.exitCode !== 0) {
       return {

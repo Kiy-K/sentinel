@@ -36,6 +36,7 @@ type WorkflowRunPayload = {
     name?: string;
     html_url?: string;
     conclusion?: string | null;
+    head_repository?: { full_name?: string; fork?: boolean };
   };
   repository?: { full_name?: string };
 };
@@ -56,6 +57,17 @@ export function parseWorkflowRun(
   const run = p.workflow_run;
   if (run?.conclusion !== "failure") {
     return { kind: "ignored", reason: `conclusion ${run?.conclusion}` };
+  }
+  // Fork PRs run with attacker-controlled code; never act on them.
+  if (run.head_repository?.fork === true) {
+    return { kind: "ignored", reason: "fork head repo" };
+  }
+  // Only repositories explicitly allowlisted for this Sprite (default: demo repo).
+  const allowed = (process.env.SENTINEL_ALLOWED_REPOS ?? "Kiy-K/night-shift-demo")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const repo = p.repository?.full_name ?? "";
+  if (!allowed.includes(repo)) {
+    return { kind: "ignored", reason: `repo not allowlisted: ${repo || "unknown"}` };
   }
   return {
     kind: "incident",
