@@ -2,13 +2,12 @@ import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { Database } from "bun:sqlite";
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { reproduceFailure, incidentWorkDir } from "../../incidents/reproduce";
 import { recordIncident as persistIncident, recordFix, recordPublish } from "../../incidents/store";
 import { publishFix } from "../../github/publish";
 import { sentinelDbPath } from "../../webhooks/dedupe";
-import { runFixLoop } from "../../agent/fix-loop";
-import { chatCompletion } from "../../agent/llm";
+import { runFixAgent } from "../../agent/fix-agent";
 
 // Records the incident; the reproduce step after this runs the tests and persists the result.
 const incidentInput = z.object({
@@ -75,10 +74,12 @@ const fix = createStep({
       return { ok: inputData.ok, note: inputData.note, reproduced: false, fixStatus: "skipped", filesChanged: [] };
     }
     try {
-      const result = await runFixLoop({
+      const result = await runFixAgent({
         workDir: incidentWorkDir(incident.deliveryId),
         failingOutput: inputData.outputTail,
-        llm: { chatCompletion },
+        repo: incident.repo,
+        deliveryId: incident.deliveryId,
+        dataDir: dirname(sentinelDbPath()),
       });
       const db = new Database(sentinelDbPath());
       try {

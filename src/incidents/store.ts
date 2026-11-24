@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { FixLoopResult } from "../agent/fix-loop";
+import type { FixAgentResult } from "../agent/fix-agent";
 
 export type IncidentRecord = {
   deliveryId: string;
@@ -50,7 +50,7 @@ export function recordIncident(db: Database, record: IncidentRecord): void {
 export function recordFix(
   db: Database,
   deliveryId: string,
-  result: FixLoopResult,
+  result: FixAgentResult,
 ): void {
   db.run(
     `CREATE TABLE IF NOT EXISTS fix_runs (
