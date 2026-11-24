@@ -173,7 +173,7 @@ export default function App() {
                 {selected.rationale && (
                   <section className="panel">
                     <h3>Agent rationale</h3>
-                    <p>{selected.rationale}</p>
+                    <p>{selected.rationale.replace(/\*\*/g, "")}</p>
                   </section>
                 )}
                 {selected.filesChanged && selected.filesChanged.length > 0 && (
