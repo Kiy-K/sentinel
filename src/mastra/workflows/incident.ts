@@ -9,6 +9,7 @@ import { recordIncident as persistIncident, recordFix, recordPublish } from "../
 import { publishFix } from "../../github/publish";
 import { sentinelDbPath } from "../../webhooks/dedupe";
 import { runFixAgent } from "../../agent/fix-agent";
+import { sendDigest } from "../../notify/digest";
 
 // Records the incident; the reproduce step after this runs the tests and persists the result.
 const incidentInput = z.object({
@@ -68,11 +69,12 @@ const fix = createStep({
     fixStatus: z.string(),
     filesChanged: z.array(z.string()),
     rationale: z.string().optional(),
+    outputTail: z.string().optional(),
   }),
   execute: async ({ inputData, getInitData }) => {
     const incident = incidentInput.parse(getInitData());
     if (!inputData.reproduced) {
-      return { ok: inputData.ok, note: inputData.note, reproduced: false, fixStatus: "skipped", filesChanged: [] };
+      return { ok: inputData.ok, note: inputData.note, reproduced: false, fixStatus: "skipped", filesChanged: [], outputTail: inputData.outputTail };
     }
     try {
       const result = await runFixAgent({
@@ -96,6 +98,7 @@ const fix = createStep({
         fixStatus: result.status,
         filesChanged: result.filesChanged,
         rationale: result.rationale,
+        outputTail: inputData.outputTail,
       };
     } catch (err) {
       // Never lose the outcome: record a failed fix row, then report the step as failed.
@@ -117,7 +120,7 @@ const fix = createStep({
       } catch {
         /* DB down; log is all we have */
       }
-      return { ok: false, note: `fix step error: ${message}`, reproduced: true, fixStatus: "failed", filesChanged: [] };
+      return { ok: false, note: `fix step error: ${message}`, reproduced: true, fixStatus: "failed", filesChanged: [], rationale: `internal error: ${message}`, outputTail: inputData.outputTail };
     }
   },
 });
@@ -131,6 +134,7 @@ const publish = createStep({
     fixStatus: z.string(),
     filesChanged: z.array(z.string()),
     rationale: z.string().optional(),
+    outputTail: z.string().optional(),
   }),
   outputSchema: z.object({
     ok: z.boolean(),
@@ -141,8 +145,16 @@ const publish = createStep({
   }),
   execute: async ({ inputData, getInitData }) => {
     const incident = incidentInput.parse(getInitData());
+    const sendDigestSafe = (status: "fixed" | "failed" | "skipped", prUrl?: string) =>
+      sendDigest({
+        repo: incident.repo, sha: incident.sha, branch: incident.branch, workflow: incident.workflow,
+        runId: incident.runId, runUrl: incident.runUrl, status, prUrl,
+        rationale: inputData.rationale, outputTail: inputData.outputTail, deliveryId: incident.deliveryId,
+      }).catch((e) => console.error(`[digest] send failed: ${e instanceof Error ? e.message : String(e)}`));
+
     const base = { ok: inputData.ok, note: inputData.note, reproduced: inputData.reproduced, fixStatus: inputData.fixStatus };
     if (inputData.fixStatus !== "fixed" || inputData.filesChanged.length === 0) {
+      await sendDigestSafe(inputData.fixStatus === "failed" ? "failed" : "skipped");
       return { ...base, note: `${inputData.note}; publish skipped (fixStatus=${inputData.fixStatus})` };
     }
     const workDir = incidentWorkDir(incident.deliveryId);
@@ -181,6 +193,7 @@ const publish = createStep({
       db.close();
     }
     console.log(`[publish] delivery=${incident.deliveryId} branch=${result.branch} pr=${result.prUrl} created=${result.prCreated}`);
+    await sendDigestSafe("fixed", result.prUrl);
     return { ...base, note: `published ${result.prUrl}`, prUrl: result.prUrl };
   },
 });
