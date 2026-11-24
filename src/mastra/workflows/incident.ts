@@ -5,7 +5,7 @@ import { reproduceFailure } from "../../incidents/reproduce";
 import { recordIncident as persistIncident } from "../../incidents/store";
 import { sentinelDbPath } from "../../webhooks/dedupe";
 
-// D3 stub: records the incident. D4/D5 grow this into clone → reproduce → patch → test.
+// Records the incident; the reproduce step after this runs the tests and persists the result.
 const incidentInput = z.object({
   deliveryId: z.string(),
   repo: z.string(),
@@ -24,7 +24,7 @@ const recordIncident = createStep({
     console.log(
       `[incident] ${inputData.repo}@${inputData.sha} workflow=${inputData.workflow} run=${inputData.runId}`,
     );
-    return { ok: true, note: "recorded (stub; reproduce/patch lands in D4/D5)" };
+    return { ok: true, note: "recorded" };
   },
 });
 
@@ -38,12 +38,16 @@ const reproduce = createStep({
     const incident = incidentInput.parse(getInitData());
     const result = reproduceFailure(incident);
     const db = new Database(sentinelDbPath());
-    persistIncident(db, {
-      ...incident,
-      reproduced: result.reproduced,
-      testExitCode: result.testExitCode,
-      outputTail: result.outputTail,
-    });
+    try {
+      persistIncident(db, {
+        ...incident,
+        reproduced: result.reproduced,
+        testExitCode: result.testExitCode,
+        outputTail: result.outputTail,
+      });
+    } finally {
+      db.close();
+    }
     return { ok: true, note: inputData.note, reproduced: result.reproduced };
   },
 });

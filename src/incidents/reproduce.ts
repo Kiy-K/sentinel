@@ -12,7 +12,7 @@ export type ReproduceIncident = {
 };
 
 export type RunResult = { exitCode: number; output: string };
-export type RunFn = (cmd: string[], cwd: string) => RunResult;
+export type RunFn = (cmd: string[], cwd: string, timeoutMs: number) => RunResult;
 
 export type ReproduceResult = {
   reproduced: boolean;
@@ -26,20 +26,23 @@ export type ReproduceOptions = { run?: RunFn };
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const DELIVERY_ID_RE = /^[A-Za-z0-9-]+$/;
+const SHA_RE = /^[0-9a-f]{4,40}$/i;
 const MAX_OUTPUT = 8000;
 
 function tail(output: string): string {
   return output.length <= MAX_OUTPUT ? output : output.slice(-MAX_OUTPUT);
 }
 
-function defaultRun(cmd: string[], cwd: string): RunResult {
-  // brief pins run(cmd, cwd) with no timeout param; bun test gets 300s, everything else 120s
-  const timeout = cmd[1] === "test" ? 300_000 : 120_000;
-  const proc = Bun.spawnSync({ cmd, cwd, stdout: "pipe", stderr: "pipe", timeout });
+const CLONE_TIMEOUT_MS = 120_000;
+const INSTALL_TIMEOUT_MS = 120_000;
+const TEST_TIMEOUT_MS = 300_000;
+
+function defaultRun(cmd: string[], cwd: string, timeoutMs: number): RunResult {
+  const proc = Bun.spawnSync({ cmd, cwd, stdout: "pipe", stderr: "pipe", timeout: timeoutMs });
   const output =
     proc.stdout.toString() +
     proc.stderr.toString() +
-    (proc.exitedDueToTimeout ? `\n[timeout after ${timeout}ms]` : "");
+    (proc.exitedDueToTimeout ? `\n[timeout after ${timeoutMs}ms]` : "");
   return { exitCode: proc.exitCode, output };
 }
 
@@ -61,6 +64,9 @@ export function reproduceFailure(
   if (!DELIVERY_ID_RE.test(incident.deliveryId)) {
     return invalid(`invalid deliveryId: ${JSON.stringify(incident.deliveryId)}`);
   }
+  if (!SHA_RE.test(incident.sha)) {
+    return invalid(`invalid sha: ${JSON.stringify(incident.sha)}`);
+  }
 
   const workDir = join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", incident.deliveryId);
   const run = opts?.run ?? defaultRun;
@@ -77,7 +83,7 @@ export function reproduceFailure(
       ["git", "checkout", "--detach", "FETCH_HEAD"],
     ];
     for (const cmd of cloneSteps) {
-      const r = run(cmd, workDir);
+      const r = run(cmd, workDir, CLONE_TIMEOUT_MS);
       output += r.output;
       if (r.exitCode !== 0) {
         return {
@@ -90,7 +96,7 @@ export function reproduceFailure(
       }
     }
 
-    const install = run(["bun", "install"], workDir);
+    const install = run(["bun", "install"], workDir, INSTALL_TIMEOUT_MS);
     output += install.output;
     if (install.exitCode !== 0) {
       return {
@@ -102,7 +108,7 @@ export function reproduceFailure(
       };
     }
 
-    const test = run(["bun", "test"], workDir);
+    const test = run(["bun", "test"], workDir, TEST_TIMEOUT_MS);
     output += test.output;
     return {
       reproduced: test.exitCode !== 0,

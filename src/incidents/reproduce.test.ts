@@ -48,6 +48,17 @@ describe("reproduceFailure", () => {
     }
   });
 
+  test("rejects invalid sha without spawning", () => {
+    const failRun: RunFn = () => {
+      throw new Error("run must not be called");
+    };
+    for (const sha of ["unknown", "xyz", "g".repeat(40), "a".repeat(41)]) {
+      const res = reproduceFailure({ ...incident, sha }, { run: failRun });
+      expect(res.reproduced).toBe(false);
+      expect(res.error).toContain("invalid sha");
+    }
+  });
+
   test("rejects invalid deliveryId without spawning", () => {
     const failRun: RunFn = () => {
       throw new Error("run must not be called");
