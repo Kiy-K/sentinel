@@ -40,3 +40,7 @@ Via dashboard (fly.io/dashboard/khoi-tr-ng), logged in as khoitruong071510@gmail
 - Usage (Nov 18–24): total spend **$0.01**, daily avg $0.00; Sprites RAM $0.00, CPU $0.00, Hot Storage $0.00.
 
 Conclusion: an idle Sprite costs effectively $0 (only storage cents), consistent with the claim. Screenshots seen live in-session; not yet exported into the repo.
+
+## Live e2e fix (2026-11-24)
+
+First live e2e run caught a real bug: the incident detail route 404'd for every deliveryId. Root cause: Hono could not match `/incidents/:id` because a sibling `/incidents/:id.json` route was registered — Hono's router dispatched `/incidents/abc` to the suffix route with an unparseable param. Fix: removed the standalone `/incidents/:id.json` route; `/incidents/:id` now handles both HTML and `.json` suffix inline. Verified locally (69/69 tests, tsc clean), redeployed to sprite (build → push top-level bundle, backup at ~/sentinel/.mastra/output.bak.*), and re-ran the live suite: 2/2 pass (tests/live-dashboard.e2e.ts).

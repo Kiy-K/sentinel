@@ -229,19 +229,6 @@ export function uiRoutes(): Route[] {
       },
     },
     {
-      path: "/incidents/:id.json",
-      method: "GET",
-      handler: (c: Context) => {
-        const id = c.req.param("id") ?? "";
-        const result = withDb(
-          (db) => getIncident(db, id),
-          null as ReturnType<typeof getIncident>,
-        );
-        if (!result) return c.json({ error: "not found" }, 404);
-        return c.json(result);
-      },
-    },
-    {
       path: "/incidents/:id/events",
       method: "GET",
       handler: (c: Context) => sseResponse(c, c.req.param("id") ?? ""),
@@ -251,8 +238,7 @@ export function uiRoutes(): Route[] {
       method: "GET",
       handler: (c: Context) => {
         const id = c.req.param("id") ?? "";
-        // Hono route priority between "/incidents/:id" and "/incidents/:id.json"
-        // is registration-order dependent; serve JSON here if .json slipped through.
+        // Hono can't express ":id with a .json suffix" safely, so handle it here.
         if (id.endsWith(".json")) {
           const jsonId = id.slice(0, -".json".length);
           const result = withDb(

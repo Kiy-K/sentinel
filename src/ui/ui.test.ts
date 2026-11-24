@@ -271,9 +271,9 @@ describe("uiRoutes handlers (minimal fake context)", () => {
     expect(await res.json()).toEqual([]);
   });
 
-  test("GET /incidents/:id.json returns 404 when missing", async () => {
-    const res = (await route("/incidents/:id.json").handler(
-      fakeContext({ id: "nope" }),
+  test("GET /incidents/:id with a .json suffix returns 404 JSON when missing", async () => {
+    const res = (await route("/incidents/:id").handler(
+      fakeContext({ id: "nope.json" }),
     )) as Response;
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not found" });
