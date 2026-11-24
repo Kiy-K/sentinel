@@ -18,6 +18,8 @@ Append-only log of user-approved decisions and constraints. Format: `D<n> (date)
 - D11: Sprites facts (VERIFIED 2026-11-24, docs + fly.io pricing, see raw/sprites-deep-dive.md): public URL via port 8080; idle ≈ $0 (CPU $0.0385/h + RAM $0.0219/GB-h; cold storage $0.02/GB-mo); checkpoints are filesystem-only (no memory state), restore destructive; connectors deny-by-default (AccessPolicy must allow endpoints — budget setup time); GitHub OAuth + OpenRouter managed (one-click, zero-key) connectors available; 2026-11-20 added Pinecone/Linear/Stripe/Tavily/Browserbase/Apify/Temporal/AssemblyAI/Sentry. Connectors keep creds out of the Sprite — biggest security selling point for demo narrative.
 ## Open questions
 
-- OQ1: Final connector set (depends on research + concept selection).
-- OQ2: Whether Mastra is adopted (evaluation in progress).
-- OQ3: Demo hosting/visibility (public demo URL vs recorded video) — needs user approval before publishing.
+- OQ1: RESOLVED 2026-11-24 — GitHub OAuth + OpenRouter (managed connector) + AgentMail/Resend (see 003 + docs/research/mastra-digest.md).
+- OQ2: RESOLVED 2026-11-24 — Mastra adopted per user directive; see docs/architecture/night-shift.md.
+- OQ3: Demo hosting/visibility (public demo Sprite URL vs recorded video only) — needs user approval before publishing. Blocks demo plan C2/C3, not the build.
+
+- D12 (2026-11-24): Build **Night Shift** (Grand Lane) per user decision — see 003-concept-decision.md. Hackathon rules re-verified live 2026-11-24 via curl https://fly.io/hacksgiving/ : Nov 23–29 2026, submissions close midnight PST Nov 29, prizes $2,500 / $1,500 / $1,000.

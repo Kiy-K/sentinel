@@ -22,12 +22,19 @@ D11 Submission (user-approved) ← D9, D10, reviewer pass
 
 Critical path: D1 → D3 → D4 → D5 → D6 → D9 → D11. Roughly 10–14 focused hours; rest is slack/rehearsal.
 
+## D2 spike exit criteria (Day 1, ≤2h)
+
+**Spike A — LLM via managed OpenRouter connector:** pass iff a `fetch` POST to the connector gateway with a trivial chat-completion payload returns HTTP 200 + parseable `choices[0].message.content`, and the same call carries no provider key in Sprite env (`printenv | grep -i key` empty).
+**Spike B — GitHub writes via gateway:** pass iff `POST git/blobs` (or dry `GET /repos/{repo}`) through the gateway succeeds with the OAuth token never on disk/env.
+Fail either → Option B path (env `OPENROUTER_API_KEY` / fine-grained PAT on Sprite), which **requires explicit user approval before placing any credential on the Sprite** (D5); B1 acceptance criterion is then rewritten accordingly, not silently dropped.
+Log pass/fail in docs/evidence/d2-spike.md either way.
+
 ## Subagent assignments (post sign-off, isolated worktrees)
 
 | Node | Owner | Worktree | Notes |
 |---|---|---|---|
 | D1, D3 | Lead (me) | main | Small, integration-critical |
-| D2 | Lead + user (OAuth) | — | User clicks connectors; lead verifies allowlist endpoints with curl |
+| D2 | Lead + user (OAuth) | — | User clicks connectors; lead verifies allowlist endpoints with curl. **Spike exit criteria:** (a) one raw `fetch` through the managed-OpenRouter gateway returns 200 + valid JSON (counts against Option A); (b) if not, Option B (`OPENROUTER_API_KEY` on Sprite) requires explicit user approval before any key is placed (D5), else LLM path is blocked. Also verify: GitHub connector gateway accepts `git/blobs|trees|commits|refs` + `pulls` + `commits/{sha}/comments` writes; if git-data writes are blocked, fall back per architecture A6 (user-approved fine-grained PAT, rotate post-event). Spike result logged in docs/evidence/. |
 | D4+D5 | Subagent `impl-agent-loop` (general-purpose, worktree) | `.worktrees/agent-loop` | Bounded task: repro → patch → test loop behind a `runIncident()` function + unit tests with mocked LLM. No deploy, no push. |
 | D6 | Lead | main | Security-critical (write path); lead-only |
 | D8 | Subagent `impl-fixture` or lead (≤30 min) | main (separate dir `demo-repo/`) | Trivial fixture; can be inline |
@@ -67,7 +74,7 @@ Rule: only lead merges to `main`; subagents never push, never touch connectors/s
 | Risk | L×I | Mitigation |
 |---|---|---|
 | Free model too weak to fix real bugs | M×H | Constrain fixture to 1–2 bug classes; pre-screen models Nov 26; fallback = scoped-down "diagnosis + suggested patch as comment" still completes A8 |
-| Connector gateway blocks git-data writes | M×M | Day-1 spike (D2) settles it; fallback PAT path pre-agreed (A4) |
+| Connector gateway blocks git-data writes | M×M | Day-1 spike (D2) settles it; fallback = user-approved fine-grained PAT per architecture A6 (requires explicit approval before use) |
 | GitHub webhook → asleep sprite latency | M×L | Sprites wake on HTTP; demo re-arms with "re-run failed jobs" |
 | Connector allowlist denial at 3 a.m. of demo | M×H | All connector calls enumerated and tested live before Nov 27 |
 | Demo-day network/LLM outage | L×H | Recorded video is the fallback narrative; live attempt still attempted |

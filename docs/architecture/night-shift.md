@@ -33,7 +33,7 @@ GitHub repo (demo target)            Sprite (microVM, sleeps at $0)
 | A1 | Runtime & serving | Mastra `server.apiRoutes` on the built app (`mastra build` → `.mastra/output/index.mjs`, run with Bun); webhook = `registerApiRoute('/webhooks/github', …)` from `@mastra/core/server` | Documented first-class path — raw `Bun.serve` + Mastra internals is not supported; custom routes via apiRoutes are |
 | A2 | Agent + durability | **Workflow-wrapped agent**: `createWorkflow` steps `reproduce → fix-loop → publish → notify`; the LLM agent lives inside the fix step. Workflow snapshots (LibSQL) make runs restart-safe; `agent.generate()` alone is NOT restart-safe | Mastra durability lives at workflow layer only (digest §1). Steps get `suspend()/resume()` free if we later want human-in-the-loop |
 | A3 | Libs | `@mastra/core@1.85.0` + `@mastra/libsql@1.31.1` + `zod@^4` only. NO `@mastra/sprites` (wrong layer — we ARE the Sprite), NO `@openrouter/ai-sdk-provider` (router string suffices), NO Mastra Cloud/DuckDB/OTel | Digest §4/§5/§7; smallest dependency surface on a 1.x-churn framework |
-| A4 | LLM access | **Option A (preferred):** Sprites managed OpenRouter connector — workflow step calls the gateway URL with `fetch`, key never in Sprite env. **Option B (fallback):** `openrouter/<provider>/<model>:free` model string + `OPENROUTER_API_KEY` env on the Sprite. Decide Day-1 spike (≤1h); Option B is simpler, A is strictly more secure | Digest §4 + sprites-deep-dive; connector usage pattern for raw HTTP unverified — timebox the spike, take B if A fights |
+| A4 | LLM access | **Option A (preferred):** Sprites managed OpenRouter connector — workflow step calls the gateway URL with `fetch`, key never in Sprite env. **Option B (fallback):** `openrouter/<provider>/<model>:free` model string + `OPENROUTER_API_KEY` env on the Sprite. NOTE: Option B puts a credential on the Sprite — requires explicit user approval (D5) before adoption; see DAG D2. Decide Day-1 spike (≤1h); Option B is simpler, A is strictly more secure | Digest §4 + sprites-deep-dive; connector usage pattern for raw HTTP unverified — timebox the spike, take B if A fights |
 | A5 | Model choice | Free-tier instruct/coder on OpenRouter (e.g. `qwen/qwen3-coder:free`-class). Pre-screen 2–3 candidates on the fixture Day 3; pin winner by exact slug; `:free` availability verified live | Free, no spend (D3); quality adequate for one-file fixture fixes |
 | A6 | GitHub access | GitHub OAuth **connector** (user authorizes once); repo cloned anonymously over HTTPS (demo repo public); ALL writes via git-data API through the gateway: `POST /git/blobs\|trees\|commits\|refs`, `POST /pulls`, `POST /repos/.../comments`. Zero GitHub tokens in Sprite | Keeps the "no credentials in sandbox" story. Fallback if gateway blocks git-data writes: fine-grained PAT scoped to demo repo only, user-approved, rotated after event (A4-style fallback) |
 | A7 | State | LibSQL file at ABSOLUTE path (`file:/data/mastra.db`) — workflow snapshots + Mastra storage. Incident ledger (delivery_id dedupe, PR links, timings) = `sentinel.db` via `bun:sqlite`, same dir | Absolute path per Mastra docs (multi-process `mastra dev`/build caveat); two files, both inspectable with `sqlite3` |
@@ -56,14 +56,14 @@ GitHub repo (demo target)            Sprite (microVM, sleeps at $0)
 
 1. `workflow_run` (conclusion=failure) hits `POST /webhooks/github`; HMAC ✓, delivery dedupe ✓ → 202.
 2. `reproduce` step: clone `--depth 50` at head SHA (anonymous HTTPS), `bun install && bun test` → capture failing output.
-3. `fixLoop` step: agent reads failing output + files → edits → re-runs tests. Green → proceed. 3 failed iterations → skip to step 5 with `diagnosis` instead of code.
-4. `publish` step (writes): blobs → tree → commit (branch `sentinel/fix-<run_id>`) via connector; open PR referencing the failed run; never pushes to default branch; no merge endpoint is ever called.
-5. `notify` step: digest email via connector with failure summary, PR link (or "not fixable in 3 tries"), iteration count; write ledger row; Sprite checkpoint.
+3. `fixLoop` step: agent reads failing output + files → edits → re-runs tests. Green → proceed. 3 failed iterations → agent writes a diagnosis and posts it as a **commit comment** on the failing head SHA (`POST /repos/{owner}/{repo}/commits/{sha}/comments`); skip to step 5 with the comment URL in place of the PR link. No PR is opened.
+4. `publish` step (writes): blobs → tree → commit (branch `sentinel/fix-<run_id>`) via connector; then EITHER open PR referencing the failed run OR (failure path) post the diagnosis as a commit comment on the failing head SHA (`POST /repos/{owner}/{repo}/commits/{sha}/comments`). Never pushes to the default branch; no merge endpoint is ever called.
+5. `notify` step: digest email via connector with failure summary, PR link or diagnosis-comment link, iteration count; write ledger row; Sprite checkpoint.
 
 ## Security posture
 
-- Gateway allowlist opened ONLY for: `repos/…/tarball` (if needed), `git/blobs|trees|commits|refs`, `pulls`, `issues/{id}/comments`, AgentMail send. Documented in README.
-- Sprite env: `WEBHOOK_SECRET` + gateway handles only. `env` audit is acceptance criterion A3.
+- Gateway allowlist opened ONLY for: `repos/…/tarball` (if needed), `git/blobs|trees|commits|refs`, `pulls`, `commits/{sha}/comments` (diagnosis path), AgentMail send. Documented in README.
+- Sprite env: `WEBHOOK_SECRET` + gateway handles only. `env` audit is acceptance criterion B1.
 - Webhook: HMAC-SHA256, replay dedupe, 401 on mismatch.
 - Agent filesystem jail: all file tools resolve inside `/work/<run_id>/`; path traversal rejected.
 - No merge, no force-push, no default-branch writes — not in code, not in allowlist.

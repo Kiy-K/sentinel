@@ -3,7 +3,7 @@
 ## Repo & tooling
 
 - Bun + TypeScript, `bun check` for typecheck (per CLAUDE.md).
-- Framework spike result: `@mastra/core@1.85.0`, `mastra@1.40.1`, `@mastra/sprites@0.1.2` (exports `SpritesSandbox`, `SpritesProcessManager`, `spritesSandboxProvider`, wraps `@fly/sprites@^0.2.4`) — all install in ~1s, import cleanly under Bun 1.4.4 (verified 2026-11-24 in /tmp/mastra-spike). Framework decision deferred to concept selection; pin exact versions when chosen.
+- Framework spike result: `@mastra/core@1.85.0`, `mastra@1.40.1` install in ~1s and import cleanly under Bun 1.4.4 (verified 2026-11-24 in /tmp/mastra-spike). `@mastra/sprites@0.1.2` also installs but is **rejected** (wrong layer — the app IS the Sprite; see docs/research/mastra-digest.md §5). Decision: **Mastra adopted** (user directive 2026-11-24); pin versions: @mastra/core 1.85.0, mastra 1.40.1, @mastra/libsql 1.31.1, zod ^4.
 - Git worktrees for parallel implementation phases (`git worktree add ../sentinel-p1 -b p1/<area>`), one writer per worktree.
 - `.env` stays gitignored; secrets via `fly secrets set` / sprite connectors, never committed.
 

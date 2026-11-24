@@ -1,6 +1,6 @@
 # Independent concept proposals — raw digest (2026-11-24)
 
-12 concepts from 3 blind generators + the Sentinel incumbent. Scores as self-reported by generators (not yet independently scored).
+12 concepts from 3 blind generators + the Sentinel incumbent. Scores as self-reported by generators; blind-scored by two reviewers — see docs/decisions/001 (rubric), 002 (scores), 003 (decision: Night Shift).
 
 ## Incumbent
 
