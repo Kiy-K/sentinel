@@ -74,3 +74,8 @@ Explicit non-goals: DurableAgent/stream resumability, suspend/resume HITL, Innge
 4. End state: exactly one PR for that delivery, one `fix_runs` row, workflow `success`.
 
 Until this test passes on the Sprite, "durable" is a claim, not a fact.
+
+## Status: VERIFIED on the live Sprite (2026-11-24)
+
+Crash test (`kill -9` mid-`fix`, watchdog restart) recovered the run automatically; it finished
+with exactly one PR (#2, `created=false`). See `docs/evidence/durability-restart.md`.
