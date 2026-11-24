@@ -19,9 +19,10 @@ const MAX_FILE_BYTES = 64 * 1024;
 const MAX_LIST_ENTRIES = 300;
 const TEST_TIMEOUT_MS = 300_000;
 const SKIP_DIRS = new Set(["node_modules", ".git"]);
-const DEFAULT_MODEL = "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free";
+// OpenRouter Free Models Router: picks from the pool of currently-free tool-capable models.
+const DEFAULT_MODEL = "openrouter/openrouter/free";
 
-export const tail = (s: string, n = MAX_OUTPUT): string =>
+const tail = (s: string, n = MAX_OUTPUT): string =>
   s.length <= n ? s : s.slice(s.length - n);
 
 function runTests(cwd: string): { exitCode: number; output: string } {
