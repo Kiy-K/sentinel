@@ -5,7 +5,7 @@ Bun + TypeScript + Mastra app for Fly.io Hacksgiving 2026. Generic Bun conventio
 ## Commands
 
 - `bun install`; dev server `bun run dev` (`mastra dev`); `bun run build` → `.mastra/output/index.mjs`; run built app `bun run start`.
-- Tests: `bun test` (43 tests co-located as `*.test.ts`, green). Typecheck: `bunx tsc --noEmit`.
+- Tests: `bun test` (41 tests co-located as `*.test.ts`, green). Typecheck: `bunx tsc --noEmit`.
 - Bun auto-loads `.env`; never add dotenv.
 
 ## Architecture (hidden by filenames)

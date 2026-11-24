@@ -6,9 +6,11 @@ on:
   pull_request:
   push:
     branches: [main]
-
 permissions:
   contents: read
+
+env:
+  E2E_TELEMETRY_DISABLED: "1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

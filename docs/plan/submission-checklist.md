@@ -16,7 +16,7 @@ Submission mechanics (from https://fly.io/hacksgiving/, fetched 2026-11-24):
 - [ ] Optional: 2–3 tweet/bluesky drafts
 
 ## Description draft (Night Shift variant)
-"Sentinel Night Shift — a personal on-call engineer that sleeps on a Fly.io Sprite at $0, wakes on GitHub webhooks when CI breaks or someone needs you, reproduces the failure in its own sandbox, opens the fix PR, and emails you a 06:30 digest. Built with Bun + Mastra + Sprites."
+"Sentinel Night Shift — an AI on-call engineer that sleeps on a $0 Fly.io Sprite, wakes on GitHub webhooks when CI goes red, reproduces the failure in its own sandbox, fixes it, and opens a PR for a human to merge. Built with Bun + Mastra + Sprites." (digest claim removed — D7 not built; see docs/plan/submission-assets.md)
 
 ## Risk checklist
 - [ ] Sprite cold-start latency documented & demo accounts for it (curl before judging)

@@ -53,6 +53,8 @@ bun .mastra/output/index.mjs
 
 Set `PORT=8080` and expose the Sprite URL. See `docs/` for the full runbook and the deploy checklist.
 
+Live instance: `https://sentinel-bjvbt.sprites.app` (`GET /healthz` → 200; ~0.7s warm — Sprites sleep when idle, so the first request after idle is the cold path; `curl /healthz` before a demo).
+
 ## Configuration
 
 | Variable | Required | Default | Purpose |
