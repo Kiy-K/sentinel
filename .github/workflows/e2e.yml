@@ -1,16 +1,22 @@
-# Written by `e2e init --ci github-actions`: the e2e tests on every pull request
-# and every push to main, one job per platform. See https://e2e.com/docs/ci/github-actions
+# CI for the Sentinel app. Builds the app and runs the deterministic e2e suite
+# (tests/example.e2e.ts + tests/smoke.e2e.ts) against a real server.
+# tests/live-dashboard.e2e.ts is intentionally NOT run here: it needs a ChatGPT
+# OAuth login (e2e login openai) that CI cannot hold. Run it locally with
+# `bun run test:e2e:live`.
 name: e2e
 
 on:
   pull_request:
   push:
     branches: [main]
+
 permissions:
   contents: read
 
 env:
   E2E_TELEMETRY_DISABLED: "1"
+  PORT: "3000"
+  APP_URL: http://localhost:3000
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +28,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -36,8 +44,27 @@ jobs:
       - name: Install browsers
         run: bunx e2e-web install chromium --with-deps
 
+      - name: Build
+        run: bun run build
+
+      - name: Start app
+        run: |
+          export SENTINEL_DATA_DIR="$RUNNER_TEMP/sentinel-data"
+          mkdir -p "$SENTINEL_DATA_DIR"
+          nohup bun .mastra/output/index.mjs > "$RUNNER_TEMP/app.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "$APP_URL/healthz" >/dev/null 2>&1; then
+              echo "app is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "app failed to start; log:" >&2
+          cat "$RUNNER_TEMP/app.log" >&2
+          exit 1
+
       - name: Run e2e
-        run: bunx e2e run --reporter list,junit
+        run: bunx e2e run tests/smoke.e2e.ts tests/example.e2e.ts --reporter list,junit
 
       - name: Upload the report
         if: ${{ !cancelled() }}
