@@ -10,6 +10,7 @@ import { publishFix } from "../../github/publish";
 import { sentinelDbPath } from "../../webhooks/dedupe";
 import { runFixAgent } from "../../agent/fix-agent";
 import { sendDigest } from "../../notify/digest";
+import { publishEvent } from "../../ui/events";
 
 // Records the incident; the reproduce step after this runs the tests and persists the result.
 const incidentInput = z.object({
@@ -30,6 +31,7 @@ const recordIncident = createStep({
     console.log(
       `[incident] ${inputData.repo}@${inputData.sha} workflow=${inputData.workflow} run=${inputData.runId}`,
     );
+    publishEvent({ deliveryId: inputData.deliveryId, kind: "incident", message: `incident recorded: ${inputData.repo}@${inputData.sha.slice(0, 7)} (${inputData.workflow})` });
     return { ok: true, note: "recorded" };
   },
 });
@@ -54,6 +56,7 @@ const reproduce = createStep({
     } finally {
       db.close();
     }
+    publishEvent({ deliveryId: incident.deliveryId, kind: "reproduce", message: result.reproduced ? "reproduced: tests fail on base sha" : "not reproduced: tests pass" });
     return { ok: true, note: inputData.note, reproduced: result.reproduced, outputTail: result.outputTail };
   },
 });
@@ -90,6 +93,7 @@ const fix = createStep({
       } finally {
         db.close();
       }
+      publishEvent({ deliveryId: incident.deliveryId, kind: "fix", message: `fix ${result.status}: ${result.filesChanged.length} file(s) changed after ${result.iterations} iteration(s)` });
       console.log(`[fix] delivery=${incident.deliveryId} status=${result.status} iterations=${result.iterations}`);
       return {
         ok: inputData.ok,
@@ -103,6 +107,7 @@ const fix = createStep({
     } catch (err) {
       // Never lose the outcome: record a failed fix row, then report the step as failed.
       const message = err instanceof Error ? err.message : String(err);
+      publishEvent({ deliveryId: incident.deliveryId, kind: "fix", message: `fix internal error: ${message.slice(0, 200)}` });
       console.error(`[fix] delivery=${incident.deliveryId} internal error: ${message}`);
       try {
         const db = new Database(sentinelDbPath());
@@ -154,6 +159,7 @@ const publish = createStep({
 
     const base = { ok: inputData.ok, note: inputData.note, reproduced: inputData.reproduced, fixStatus: inputData.fixStatus };
     if (inputData.fixStatus !== "fixed" || inputData.filesChanged.length === 0) {
+      publishEvent({ deliveryId: incident.deliveryId, kind: "publish", message: `publish skipped (fixStatus=${inputData.fixStatus})` });
       await sendDigestSafe(inputData.fixStatus === "failed" ? "failed" : "skipped");
       return { ...base, note: `${inputData.note}; publish skipped (fixStatus=${inputData.fixStatus})` };
     }
@@ -193,6 +199,7 @@ const publish = createStep({
       db.close();
     }
     console.log(`[publish] delivery=${incident.deliveryId} branch=${result.branch} pr=${result.prUrl} created=${result.prCreated}`);
+    publishEvent({ deliveryId: incident.deliveryId, kind: "publish", message: `PR opened: ${result.prUrl}` });
     await sendDigestSafe("fixed", result.prUrl);
     return { ...base, note: `published ${result.prUrl}`, prUrl: result.prUrl };
   },

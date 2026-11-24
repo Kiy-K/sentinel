@@ -6,6 +6,7 @@ import { LibSQLStore } from "@mastra/libsql";
 import { incidentWorkflow } from "./workflows/incident";
 import { DeliveryStore } from "../webhooks/dedupe";
 import { parseWorkflowRun, verifySignature } from "../webhooks/github";
+import { uiRoutes } from "../ui/routes";
 
 const dataDir = resolve(process.env.SENTINEL_DATA_DIR ?? "./data");
 mkdirSync(dataDir, { recursive: true });
@@ -71,6 +72,7 @@ export const mastra = new Mastra({
           return c.json({ ok: true, accepted: true, delivery }, 202);
         },
       }),
+      ...uiRoutes().map((r) => registerApiRoute(r.path, { method: r.method, handler: r.handler })),
     ],
   },
 });
