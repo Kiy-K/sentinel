@@ -1,6 +1,7 @@
 # Implementation DAG, assignments, budget, roadmap — Sentinel Night Shift
 
 Date: 2026-11-24. Companion to `docs/architecture/night-shift.md`. Worktrees under `.worktrees/` (Sprites guide pattern); `main` integrates.
+Status 2026-11-24: D1 ✅ (Sprite hello, healthz), D2 ✅ (all three connectors verified end-to-end; docs/evidence/d2-spike.md), D3 ✅ (live GitHub → Sprite webhook, docs/evidence/d3-webhook.md), D8 ✅ (Kiy-K/night-shift-demo, failing CI).
 
 ## DAG (nodes → dependencies)
 
