@@ -22,6 +22,10 @@ export type ReproduceResult = {
   error?: string;
 };
 
+export function incidentWorkDir(deliveryId: string): string {
+  return join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", deliveryId);
+}
+
 export type ReproduceOptions = { run?: RunFn };
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -68,7 +72,7 @@ export function reproduceFailure(
     return invalid(`invalid sha: ${JSON.stringify(incident.sha)}`);
   }
 
-  const workDir = join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", incident.deliveryId);
+  const workDir = incidentWorkDir(incident.deliveryId);
   const run = opts?.run ?? defaultRun;
   let output = "";
 
