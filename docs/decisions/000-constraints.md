@@ -13,6 +13,7 @@ Append-only log of user-approved decisions and constraints. Format: `D<n> (date)
 - D7: Stack preference: **TypeScript, Bun**. User recommends **Mastra** (mastra.ai) — to be evaluated in P0, not assumed.
 - D8: Goal: win or place at Hacksgiving 2026 (prizes $2,500 / $1,500 / $1,000 Weird Uncle). One entry per developer.
 - D9: Hackathon rules (from https://fly.io/hacksgiving/, fetched 2026-11-24): must be built during Nov 23–29; must run on a Fly.io Sprite; must use ≥1 Sprites connector; submission = code link + demo + 1–2 sentence description; sharing post tagging @flydotio optional ("bonus points", not scored).
+- D10: SPRITES_TOKEN (in local .env, gitignored) verified working against https://api.sprites.dev/v1/sprites on 2026-11-24 — org "khoi-tr-ng", 0 sprites provisioned, running/warm limit 10. `sprite` CLI also authenticated (whoami → account email). Creating sprites = within hackathon free-plan scope; any paid overage still needs D3 approval.
 
 ## Open questions
 

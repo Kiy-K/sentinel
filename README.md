@@ -1,23 +1,10 @@
-# sentinel
+# Sentinel — Hacksgiving 2026
 
-To install dependencies:
+Fly.io Hacksgiving 2026 entry. Research and planning docs live in `docs/`.
 
-```bash
-bun install
-```
+- `docs/decisions/` — decision log (constraints, selection, ADRs)
+- `docs/research/` — P0 research findings
+- `docs/architecture/` — architecture (post-selection)
+- `docs/plan/` — implementation DAG, budgets, roadmap
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-To type check:
-
-```bash
-bun check
-```
-
-Run `bun fmt` to format the code.
-
-This project was created using `bun init` in bun v1.4.4. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Hackathon: Nov 23–29, 2026 · Submit by midnight PST Nov 29 · https://fly.io/hacksgiving/
