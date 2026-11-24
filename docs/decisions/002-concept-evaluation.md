@@ -4,7 +4,7 @@ Rubric: `001-evaluation-rubric.md`. Scores 1–10, weighted.
 Candidates = incumbent + 11 generated concepts, shortlisted to 6 by the lead (others eliminated as dominated: A2 telephony rails unavailable; A3 eval-hard in 5 days; B4 Grudge Ledger low utility/originality fit; C2 Receipts Clerk dominated by Haggler on demo; B3≈C1 same concept cluster; B1≈A1≈C4 same cluster).
 
 Independent blind scoring by two reviewer subagents pending; this file holds the lead scores + adjudication.
-
+Blind scoring by two reviewer subagents. Reviewer A (product/demo-risk lens) scored: Spright 82.0 > Night Shift 80.0 > Estate Executor 73.5 > Haggler 65.5 > Sentry Parrot 56.5 > Sentinel v0 39.5. Reviewer A notes: all three leaders pass hard gates (feasibility/sprite-native ≥7); Spright's edge is choreographed demo reliability vs live-webhook risk; Night Shift's edge is Grand-lane fit + utility; Haggler fails feasibility (external writes on critical path); Sentinel v0 fails everywhere. Lead scores below.
 | Concept | Demo | Feas. | Sprite-native | Connectors | Orig. | Judge fit | Lane | Utility | **Weighted** |
 |---|---|---|---|---|---|---|---|---|---|
 | Sentinel v0 (generic personal assistant) | 4 | 8 | 3 | 6 | 2 | 4 | 3 | 8 | **4.75** |
