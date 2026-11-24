@@ -6,9 +6,9 @@ All calls issued from inside Sprite `night-shift` (id sprite-31421280-edaf-4561-
 
 | Provider | Connection ID | Auth | Access policy (label-scoped to `sentinel`) | Status |
 |---|---|---|---|---|
-| GitHub (Kiy-K, scopes repo, read:org, workflow) | z2VulBHCiAjWItKbmTNQfg | OAuth (user-completed) | `allowed_endpoints: ["/repos/*", "/user"]`, sprite_labels [sentinel] | ✅ verified |
-| AgentMail (inbox sentinelbot@agentmail.to) | jOHNKmWg7mTXSuv8JpZb6Q | API key, inbox-scoped | `allowed_endpoints: ["/v0/*", "/user"]`, sprite_labels [sentinel] | ✅ verified |
-| OpenRouter (BYOK, account default, masked sk-or-v1-3cb…38c) | YAwjiB-NmlkODCdv-nq7Ug | API key | `allowed_endpoints: ["/v1/chat/completions", "/v1/models"]`, sprite_labels [sentinel] | ✅ verified |
+| GitHub (Kiy-K, scopes repo, read:org, workflow) | `<github-conn-id>` | OAuth (user-completed) | `allowed_endpoints: ["/repos/*", "/user"]`, sprite_labels [sentinel] | ✅ verified |
+| AgentMail (inbox sentinelbot@agentmail.to) | `<agentmail-conn-id>` | API key, inbox-scoped | `allowed_endpoints: ["/v0/*", "/user"]`, sprite_labels [sentinel] | ✅ verified |
+| OpenRouter (BYOK, account default, key never on Sprite) | `<openrouter-conn-id>` | API key | `allowed_endpoints: ["/v1/chat/completions", "/v1/models"]`, sprite_labels [sentinel] | ✅ verified |
 
 Sprite `night-shift` carries label `sentinel` (`sprite config update --label sentinel`). Deny-by-default was confirmed live: before policies were set, gateway calls from the Sprite returned an empty connection set; after scoping, all three connectors answer.
 
