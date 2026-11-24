@@ -12,7 +12,7 @@ D2 Connector wiring + allowlist check ───┤ (D2 needs user OAuth — user
 D8 Fixture repo (seeded failing test) ───┤ independent, can start immediately
                                          ▼
 D3 Webhook receiver + HMAC + dedupe  ← D1
-D4 Clone + reproduce (bun test in sandbox) ← D1, D8
+D4 Clone + reproduce (bun test in sandbox) ← D1, D8 — ✅ 2026-11-24 (evidence: docs/evidence/d4-reproduce.md)
 D5 Agent loop: diagnose→patch→test (≤3 iters) ← D2, D4
 D6 Push branch + open PR via git-data API ← D5, D2
 D7 Email digest (AgentMail) ← D5, D2
