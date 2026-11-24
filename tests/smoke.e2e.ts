@@ -2,19 +2,19 @@ import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 
 // Deterministic smoke suite — no model, no network. Safe for CI.
-// Agent/live tests live in live-dashboard.e2e.ts and need ChatGPT OAuth.
 // Run against an empty SENTINEL_DATA_DIR so the empty state is deterministic.
 test('dashboard renders empty state', async ({ app, browser }) => {
   await app.open('/');
-  await expect(browser.locator('text=No incidents recorded yet.')).toBeVisible();
+  await expect(browser.locator('text=No incidents yet')).toBeVisible();
 });
 
-test('unknown incident id renders a 404 page', async ({ app, browser }) => {
-  await app.open('/incidents/does-not-exist');
-  await expect(browser.locator('text=No incident')).toBeVisible();
+test('chat panel is rendered', async ({ app, browser }) => {
+  await app.open('/');
+  await expect(browser.locator('.chat')).toBeVisible();
+  await expect(browser.locator('.copilot, [class*="copilot"]').first()).toBeVisible();
 });
 
-test('brand link points home', async ({ app, browser }) => {
-  await app.open('/incidents/does-not-exist');
-  await expect(browser.locator('header a.brand')).toBeVisible();
+test('header shows the night-shift brand', async ({ app, browser }) => {
+  await app.open('/');
+  await expect(browser.locator('.brand-name')).toBeVisible();
 });

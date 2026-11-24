@@ -7,6 +7,8 @@ import { incidentWorkflow } from "./workflows/incident";
 import { DeliveryStore } from "../webhooks/dedupe";
 import { parseWorkflowRun, verifySignature } from "../webhooks/github";
 import { uiRoutes } from "../ui/routes";
+import { sentinelAgent } from "../agent/sentinel-agent";
+import { registerCopilotKit } from "@ag-ui/mastra/copilotkit";
 
 const dataDir = resolve(process.env.SENTINEL_DATA_DIR ?? "./data");
 mkdirSync(dataDir, { recursive: true });
@@ -14,6 +16,7 @@ mkdirSync(dataDir, { recursive: true });
 const deliveries = new DeliveryStore(join(dataDir, "sentinel.db"));
 
 export const mastra = new Mastra({
+  agents: { sentinel: sentinelAgent },
   workflows: { incident: incidentWorkflow },
   storage: new LibSQLStore({
     id: "sentinel-storage",
@@ -32,7 +35,7 @@ export const mastra = new Mastra({
         c.header("referrer-policy", "strict-origin-when-cross-origin");
         c.header(
           "content-security-policy",
-          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         );
         if (!c.res.headers.get("cache-control")) c.header("cache-control", "no-cache");
       },
@@ -43,6 +46,7 @@ export const mastra = new Mastra({
         handler: async (c) =>
           c.json({ ok: true, service: "sentinel-night-shift", version: "0.1.0" }),
       }),
+      registerCopilotKit({ path: "/copilotkit", resourceId: "sentinel-demo" }),
       registerApiRoute("/webhooks/github", {
         method: "POST",
         handler: async (c) => {

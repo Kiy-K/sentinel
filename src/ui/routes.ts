@@ -1,295 +1,73 @@
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { Database } from "bun:sqlite";
-import type { Context } from "hono";
-import { escapeHtml, layout } from "./html";
-import { getIncident, listIncidents, type FixRunRow, type IncidentRow } from "./queries";
-import { recentEvents, subscribe, type UiEvent } from "./events";
+import { sentinelDbPath } from "../webhooks/dedupe";
+import { getIncident, listIncidents } from "./queries";
+import { resolveStatic } from "./static";
 
-function dbPath(): string {
-  return join(resolve(process.env.SENTINEL_DATA_DIR ?? "./data"), "sentinel.db");
-}
-
-// Opens the shared sentinel.db readonly; null when missing so routes degrade
-// to empty states instead of creating or mutating it.
+// Opens the shared sentinel.db readonly; null when missing so routes degrade gracefully.
 function openDb(): Database | null {
-  const path = dbPath();
-  if (!existsSync(path)) return null;
   try {
-    return new Database(path, { readonly: true });
+    return new Database(sentinelDbPath(), { readonly: true });
   } catch {
     return null;
   }
 }
 
-function withDb<T>(fn: (db: Database) => T, fallback: T): T {
-  const db = openDb();
-  if (!db) return fallback;
-  try {
-    return fn(db);
-  } catch {
-    return fallback;
-  } finally {
-    try {
-      db.close();
-    } catch {
-      // already closed
-    }
-  }
-}
+type Route = { path: string; method: "GET"; handler: (c: any) => any };
 
-// Only http(s) URLs may reach an href; anything else degrades to "#".
-export function safeUrl(url: string | null | undefined): string {
-  if (!url) return "#";
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? escapeHtml(url) : "#";
-  } catch {
-    return "#";
-  }
-}
-
-function badgeClass(status: string): string {
-  return /^[a-z0-9_-]+$/i.test(status) ? status.toLowerCase() : "";
-}
-
-function shortSha(sha: string | null): string {
-  return sha ? escapeHtml(sha.slice(0, 7)) : "—";
-}
-
-function statusOf(i: IncidentRow): string {
-  return i.status ?? "running";
-}
-
-function actionsRunUrl(repo: string | null, runId: number | null): string | null {
-  if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !Number.isFinite(runId)) return null;
-  return `https://github.com/${repo}/actions/runs/${runId}`;
-}
-
-function shaCell(i: IncidentRow): string {
-  const url = actionsRunUrl(i.repo ?? null, i.runId ?? null);
-  const sha = shortSha(i.sha);
-  return url ? `<a href="${escapeHtml(url)}" rel="noreferrer noopener" title="Open workflow run">${sha}</a>` : sha;
-}
-
-export function renderDashboard(incidents: IncidentRow[]): string {
-  const rows = incidents
-    .map((i) => {
-      const status = statusOf(i);
-      const pr = i.prUrl
-        ? `<a href="${safeUrl(i.prUrl)}" rel="noreferrer noopener">PR</a>`
-        : "—";
-      return `<tr>
-  <td><a href="/incidents/${encodeURIComponent(i.deliveryId)}">${escapeHtml(i.repo ?? "—")}</a></td>
-  <td class="mono">${shaCell(i)}</td>
-  <td>${escapeHtml(i.branch ?? "—")}</td>
-  <td><span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span></td>
-  <td><span aria-hidden="true">${i.reproduced ? "✓" : "✗"}</span><span class="sr-only">${i.reproduced ? "reproduced" : "not reproduced"}</span></td>
-  <td>${pr}</td>
-  <td class="mono">${escapeHtml(i.createdAt ?? "—")}</td>
-</tr>`;
-    })
-    .join("\n");
-
-  const body =
-    incidents.length === 0
-      ? `<h1>Incidents</h1><p class="empty">No incidents recorded yet.</p>`
-      : `<h1>Incidents</h1>
-<p class="tagline">CI failures an agent reproduced, fixed, and opened a PR for.</p>
-<div class="table-wrap"><table>
-<caption>Incidents, newest first</caption>
-<thead><tr><th scope="col">Repo</th><th scope="col">SHA</th><th scope="col">Branch</th><th scope="col">Status</th><th scope="col">Repro</th><th scope="col">PR</th><th scope="col">Created</th></tr></thead>
-<tbody>
-${rows}
-</tbody>
-</table></div>`;
-
-  return layout("Dashboard", body);
-}
-
-export function renderIncident(
-  incident: IncidentRow,
-  fix: FixRunRow | null,
-): string {
-  const id = incident.deliveryId;
-  const status = statusOf(incident);
-  const files = (fix?.filesChanged ?? incident.filesChanged ?? [])
-    .map((f) => `<li><code>${escapeHtml(f)}</code></li>`)
-    .join("");
-  const prUrl = fix?.prUrl ?? incident.prUrl;
-  const prButton = prUrl
-    ? `<p><a class="badge ok" href="${safeUrl(prUrl)}" rel="noreferrer noopener">View PR</a></p>`
-    : "";
-  const lastTail = fix?.lastOutputTail ?? incident.lastOutputTail;
-  const rationale = fix?.rationale ?? incident.rationale;
-  const iterations = fix?.iterations ?? incident.iterations;
-
-  const body = `<p><a href="/">← back</a></p>
-<h1>Incident <code>${escapeHtml(id)}</code></h1>
-<dl class="fields">
-  <dt>Repo</dt><dd>${escapeHtml(incident.repo ?? "—")}</dd>
-  <dt>SHA</dt><dd class="mono">${escapeHtml(incident.sha ?? "—")}</dd>
-  <dt>Branch</dt><dd>${escapeHtml(incident.branch ?? "—")}</dd>
-  <dt>Workflow</dt><dd>${escapeHtml(incident.workflow ?? "—")}</dd>
-  <dt>Run ID</dt><dd class="mono">${incident.runId == null ? "—" : (actionsRunUrl(incident.repo ?? null, incident.runId) ? `<a href="${escapeHtml(actionsRunUrl(incident.repo ?? null, incident.runId)!)}" rel="noreferrer noopener">${incident.runId} ↗</a>` : incident.runId)}</dd>
-  <dt>Reproduced</dt><dd>${incident.reproduced ? "✓ yes" : "✗ no"}</dd>
-  <dt>Test exit code</dt><dd class="mono">${incident.testExitCode ?? "—"}</dd>
-  <dt>Created</dt><dd class="mono">${escapeHtml(incident.createdAt ?? "—")}</dd>
-  <dt>Status</dt><dd><span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span></dd>
-  <dt>Iterations</dt><dd class="mono">${iterations ?? "—"}</dd>
-</dl>
-${prButton}
-<h2>Rationale</h2>
-<pre>${escapeHtml(rationale ?? "—")}</pre>
-<h2>Files changed</h2>
-${files ? `<ul>${files}</ul>` : "<p>—</p>"}
-<h2>Output tail</h2>
-<pre>${escapeHtml(incident.outputTail ?? "—")}</pre>
-${
-  lastTail
-    ? `<details><summary>Last fix output tail</summary><pre>${escapeHtml(lastTail)}</pre></details>`
-    : ""
-}
-<h2>Live events</h2>
-<pre id="log" role="log" aria-live="polite" aria-label="Live fix log">Waiting for live events…</pre>
-<script>
-(function () {
-  var log = document.getElementById("log");
-  var first = true;
-  var es = new EventSource("/incidents/${encodeURIComponent(id)}/events");
-  es.onmessage = function (ev) {
-    try {
-      if (first) { log.textContent = ""; first = false; }
-      var e = JSON.parse(ev.data);
-      var line = "[" + (e.ts || "") + "] " + (e.kind || "event") + ": " + (e.message || "") + "\\n";
-      log.appendChild(document.createTextNode(line));
-    } catch (err) { /* ignore malformed event */ }
+function incidentsJson(): Route {
+  return {
+    path: "/incidents.json",
+    method: "GET",
+    handler: (c: any) => {
+      const db = openDb();
+      if (!db) return c.json([]);
+      try {
+        return c.json(listIncidents(db, 50));
+      } finally {
+        db.close();
+      }
+    },
   };
-})();
-</script>`;
-
-  return layout(`Incident ${id.slice(0, 12)}`, body);
 }
 
-function sseResponse(c: Context, deliveryId: string): Response {
-  const encoder = new TextEncoder();
-  let cleanup: () => void = () => {};
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      let closed = false;
-      const send = (chunk: string) => {
-        if (closed) return;
-        try {
-          controller.enqueue(encoder.encode(chunk));
-        } catch {
-          closed = true;
-        }
-      };
-      const sendEvent = (e: UiEvent) => send(`data: ${JSON.stringify(e)}\n\n`);
+function incidentJson(): Route {
+  return {
+    path: "/incidents/:id{[^/]+\\.json}",
+    method: "GET",
+    handler: (c: any) => {
+      const id = (c.req.param("id") ?? "").replace(/\.json$/, "");
+      const db = openDb();
+      if (!db) return c.json({ error: "not found" }, 404);
+      try {
+        const found = getIncident(db, id);
+        if (!found) return c.json({ error: "not found" }, 404);
+        return c.json({ ...found.incident, fix: found.fix });
+      } finally {
+        db.close();
+      }
+    },
+  };
+}
 
-      for (const e of recentEvents(deliveryId, 100)) sendEvent(e);
-
-      const unsubscribe = subscribe((e) => {
-        if (e.deliveryId === deliveryId) sendEvent(e);
+function spa(): Route {
+  return {
+    path: "*",
+    method: "GET",
+    handler: (c: any) => {
+      const path = new URL(c.req.url).pathname;
+      const hit = resolveStatic(path);
+      if (!hit.found) {
+        return c.text("not found", 404);
+      }
+      return c.body(hit.body, 200, {
+        "content-type": hit.contentType,
+        "cache-control": hit.cacheControl,
       });
-      const heartbeat = setInterval(() => send(": ping\n\n"), 15000);
-
-      cleanup = () => {
-        if (closed) return;
-        closed = true;
-        clearInterval(heartbeat);
-        unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      };
-      c.req.raw.signal?.addEventListener("abort", cleanup);
     },
-    cancel() {
-      cleanup();
-    },
-  });
-
-  return new Response(stream, {
-    status: 200,
-    headers: {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache",
-      connection: "keep-alive",
-    },
-  });
+  };
 }
 
-type Route = { path: string; method: "GET"; handler: (c: Context, next?: () => Promise<void>) => unknown };
-
-// Paths owned by Mastra itself; our catch-all must fall through to them.
-const FRAMEWORK_PREFIXES = ["/api", "/swagger-ui", "/openapi.json", "/health"];
-
+/** JSON API + static SPA catch-all. Mount these LAST in apiRoutes. */
 export function uiRoutes(): Route[] {
-  return [
-    {
-      path: "/",
-      method: "GET",
-      handler: (c: Context) => {
-        const incidents = withDb((db) => listIncidents(db), [] as IncidentRow[]);
-        return c.html(renderDashboard(incidents));
-      },
-    },
-    {
-      path: "/incidents.json",
-      method: "GET",
-      handler: (c: Context) => {
-        const incidents = withDb((db) => listIncidents(db), [] as IncidentRow[]);
-        return c.json(incidents);
-      },
-    },
-    {
-      path: "/incidents/:id/events",
-      method: "GET",
-      handler: (c: Context) => sseResponse(c, c.req.param("id") ?? ""),
-    },
-    {
-      path: "/incidents/:id",
-      method: "GET",
-      handler: (c: Context) => {
-        const id = c.req.param("id") ?? "";
-        // Hono can't express ":id with a .json suffix" safely, so handle it here.
-        if (id.endsWith(".json")) {
-          const jsonId = id.slice(0, -".json".length);
-          const result = withDb(
-            (db) => getIncident(db, jsonId),
-            null as ReturnType<typeof getIncident>,
-          );
-          if (!result) return c.json({ error: "not found" }, 404);
-          return c.json(result);
-        }
-        const result = withDb(
-          (db) => getIncident(db, id),
-          null as ReturnType<typeof getIncident>,
-        );
-        if (!result) return c.html(layout("Not found", `<h1>404</h1><p>No incident <code>${escapeHtml(id)}</code>.</p><p><a href="/">← back</a></p>`), 404);
-        return c.html(renderIncident(result.incident, result.fix));
-      },
-    },
-    {
-      // Branded 404 for everything else (replaces the framework's default welcome page).
-      path: "*",
-      method: "GET",
-      handler: (c: Context, next?: () => Promise<void>) => {
-        const p = c.req.path;
-        if (FRAMEWORK_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`))) {
-          return next?.();
-        }
-        return c.html(
-          layout(
-            "Not found",
-            `<h1>404 — not found</h1><p>No page at <code>${escapeHtml(p)}</code>.</p><p><a href="/">← back to incidents</a></p>`,
-          ),
-          404,
-        );
-      },
-    },
-  ];
+  return [incidentsJson(), incidentJson(), spa()];
 }

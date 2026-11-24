@@ -30,7 +30,7 @@ Durable execution: workflow state is persisted in LibSQL after every step; on pr
 ```bash
 bun install
 cp .env.example .env     # fill in OPENROUTER_API_KEY + WEBHOOK_SECRET
-bun test                 # run the test suite (41 tests)
+bun test                 # run the test suite (55 tests)
 bunx tsc --noEmit        # typecheck
 ```
 
@@ -46,8 +46,9 @@ Point a GitHub webhook (events: **Workflow runs**, content type `application/jso
 
 ```bash
 sprite create sentinel          # persistent microVM on Fly.io
+bun run build:web               # → web/dist (SPA served at /)
 bunx mastra build               # → .mastra/output
-# copy the repo + build output to the sprite, set env vars, run:
+# copy the repo + .mastra/output + web/dist to the sprite, set env vars, run:
 bun .mastra/output/index.mjs
 ```
 
