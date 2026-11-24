@@ -15,6 +15,7 @@ Append-only log of user-approved decisions and constraints. Format: `D<n> (date)
 - D9: Hackathon rules (from https://fly.io/hacksgiving/, fetched 2026-11-24): must be built during Nov 23–29; must run on a Fly.io Sprite; must use ≥1 Sprites connector; submission = code link + demo + 1–2 sentence description; sharing post tagging @flydotio optional ("bonus points", not scored).
 - D10: SPRITES_TOKEN (in local .env, gitignored) verified working against https://api.sprites.dev/v1/sprites on 2026-11-24 — org "khoi-tr-ng", 0 sprites provisioned, running/warm limit 10. `sprite` CLI also authenticated (whoami → account email). Creating sprites = within hackathon free-plan scope; any paid overage still needs D3 approval.
 
+- D11: Sprites facts (VERIFIED 2026-11-24, docs + fly.io pricing, see raw/sprites-deep-dive.md): public URL via port 8080; idle ≈ $0 (CPU $0.0385/h + RAM $0.0219/GB-h; cold storage $0.02/GB-mo); checkpoints are filesystem-only (no memory state), restore destructive; connectors deny-by-default (AccessPolicy must allow endpoints — budget setup time); GitHub OAuth + OpenRouter managed (one-click, zero-key) connectors available; 2026-11-20 added Pinecone/Linear/Stripe/Tavily/Browserbase/Apify/Temporal/AssemblyAI/Sentry. Connectors keep creds out of the Sprite — biggest security selling point for demo narrative.
 ## Open questions
 
 - OQ1: Final connector set (depends on research + concept selection).

@@ -8,8 +8,8 @@ Raw agent outputs live in `raw/`. Synthesized findings are referenced from the d
 | `raw/866af334-…_delegate_output.md` | delegate B | 4 concepts (Estate Executor, Haggler, Night Shift, Grudge Ledger) |
 | `raw/9e28cd34-…_delegate_output.md` | delegate C | 4 concepts (Night Shift, Receipts Clerk, Sentry Parrot, Dead Man's Switch) |
 | `raw/connector-matrix.md` | researcher | Connector friction/feasibility matrix; recommended set: GitHub + OpenRouter + email (AgentMail/Resend); avoid paid rails on critical path |
-| `raw/task-1.md` | researcher | Sprites platform deep-dive (pending → moved here when done) |
-| `raw/task-2.md` | researcher | Prior art + judging intel (pending → moved here when done) |
+| `raw/sprites-deep-dive.md` | researcher | Sprites platform mechanics: pricing, checkpoints (fs-only), connectors deny-by-default, GitHub OAuth + OpenRouter managed connector, port 8080 public URL |
+| `raw/prior-art.md` | researcher | Prior art + judging intel: no prior Fly hackathons; Fly wants shareable Sprite demos; weird/persistent/long-running agents stand out; checkpoint/restore + multi-Sprite are underexploited; tag @flydotio |
 
 Key external sources:
 
