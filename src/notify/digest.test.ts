@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { sendDigest, type DigestInput } from "./digest";
 
 const baseInput: DigestInput = {
-  repo: "Kiy-K/night-shift-demo",
+  repo: "Kiy-K/sentinel-demo",
   sha: "abc1234567890",
   branch: "sentinel/fix-1",
   workflow: "ci",
   runId: 123,
-  runUrl: "https://github.com/Kiy-K/night-shift-demo/actions/runs/123",
+  runUrl: "https://github.com/Kiy-K/sentinel-demo/actions/runs/123",
   status: "fixed",
-  prUrl: "https://github.com/Kiy-K/night-shift-demo/pull/2",
+  prUrl: "https://github.com/Kiy-K/sentinel-demo/pull/2",
   rationale: "off by one in parser",
   outputTail: "line1\nline2\ntests pass",
   deliveryId: "delivery-abc",
@@ -50,9 +50,9 @@ describe("sendDigest", () => {
     expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer test-key");
     const body = JSON.parse(String(init.body));
     expect(body.to).toEqual(["human@example.com"]);
-    expect(body.subject).toContain("Kiy-K/night-shift-demo");
+    expect(body.subject).toContain("Kiy-K/sentinel-demo");
     expect(body.text).toContain("abc1234");
-    expect(body.text).toContain("https://github.com/Kiy-K/night-shift-demo/pull/2");
+    expect(body.text).toContain("https://github.com/Kiy-K/sentinel-demo/pull/2");
     expect(body.text).toContain("off by one in parser");
     expect(body.text).toContain("delivery-abc");
   });
@@ -61,7 +61,7 @@ describe("sendDigest", () => {
     const calls = mockFetch(async () => okResponse());
     await sendDigest({ ...baseInput, status: "failed", prUrl: undefined }, env);
     const body = JSON.parse(String(calls[0]!.init.body));
-    expect(body.subject).toBe("[Sentinel] Could not fix Kiy-K/night-shift-demo (ci)");
+    expect(body.subject).toBe("[Sentinel] Could not fix Kiy-K/sentinel-demo (ci)");
   });
 
   test("skips when DIGEST_TO is unset", async () => {

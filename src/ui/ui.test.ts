@@ -37,7 +37,7 @@ describe("safeUrl", () => {
 function fixtureIncident(overrides: Partial<IncidentRow> = {}): IncidentRow {
   return {
     deliveryId: "d-1",
-    repo: "Kiy-K/night-shift-demo",
+    repo: "Kiy-K/sentinel-demo",
     sha: "abc123def456",
     branch: "main",
     workflow: "CI",
@@ -52,7 +52,7 @@ function fixtureIncident(overrides: Partial<IncidentRow> = {}): IncidentRow {
     rationale: "fixed the thing",
     lastOutputTail: "tail",
     fixCreatedAt: "2026-11-20T00:01:00.000Z",
-    prUrl: "https://github.com/Kiy-K/night-shift-demo/pull/2",
+    prUrl: "https://github.com/Kiy-K/sentinel-demo/pull/2",
     prBranch: "sentinel/fix-1",
     commitSha: "deadbeef",
     ...overrides,

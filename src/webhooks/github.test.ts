@@ -35,7 +35,7 @@ describe("parseWorkflowRun", () => {
       html_url: "https://example.com/run/42",
       conclusion: "failure",
     },
-    repository: { full_name: "Kiy-K/night-shift-demo" },
+    repository: { full_name: "Kiy-K/sentinel-demo" },
   };
 
   test("extracts an incident from a failed workflow_run", () => {
@@ -44,7 +44,7 @@ describe("parseWorkflowRun", () => {
     if (r.kind === "incident") {
       expect(r.incident).toMatchObject({
         deliveryId: "delivery-1",
-        repo: "Kiy-K/night-shift-demo",
+        repo: "Kiy-K/sentinel-demo",
         sha: "abc123",
         workflow: "CI",
         runId: 42,
@@ -57,7 +57,7 @@ describe("parseWorkflowRun", () => {
       ...payload,
       workflow_run: {
         ...payload.workflow_run,
-        head_repository: { full_name: "attacker/night-shift-demo", fork: true },
+        head_repository: { full_name: "attacker/sentinel-demo", fork: true },
       },
     };
     expect(parseWorkflowRun("workflow_run", forked, "d-fork").kind).toBe("ignored");

@@ -41,7 +41,7 @@ describe("publishFix", () => {
   test("happy path publishes branch and PR", async () => {
     const { fn, calls } = happyPath();
     const res = await publishFix(
-      { repo: "Kiy-K/night-shift-demo", branch: "sentinel/fix-1", baseBranch: "main",
+      { repo: "Kiy-K/sentinel-demo", branch: "sentinel/fix-1", baseBranch: "main",
         files: [{ path: "src/add.ts", content: "fixed" }],
         commitMessage: "fix", title: "Fix the thing", body: "body" },
       fn,
@@ -49,13 +49,13 @@ describe("publishFix", () => {
     expect(res.prUrl).toBe("https://github.com/x/y/pull/7");
     expect(res.commitSha).toBe("newcommit");
     expect(calls.map((c) => c.method + " " + c.url.replace("https://gw.test/gh", ""))).toEqual([
-      "GET /repos/Kiy-K/night-shift-demo/git/ref/heads/main",
-      "GET /repos/Kiy-K/night-shift-demo/git/commits/basecommit",
-      "POST /repos/Kiy-K/night-shift-demo/git/blobs",
-      "POST /repos/Kiy-K/night-shift-demo/git/trees",
-      "POST /repos/Kiy-K/night-shift-demo/git/commits",
-      "POST /repos/Kiy-K/night-shift-demo/git/refs",
-      "POST /repos/Kiy-K/night-shift-demo/pulls",
+      "GET /repos/Kiy-K/sentinel-demo/git/ref/heads/main",
+      "GET /repos/Kiy-K/sentinel-demo/git/commits/basecommit",
+      "POST /repos/Kiy-K/sentinel-demo/git/blobs",
+      "POST /repos/Kiy-K/sentinel-demo/git/trees",
+      "POST /repos/Kiy-K/sentinel-demo/git/commits",
+      "POST /repos/Kiy-K/sentinel-demo/git/refs",
+      "POST /repos/Kiy-K/sentinel-demo/pulls",
     ]);
   });
 
@@ -70,7 +70,7 @@ describe("publishFix", () => {
   test("rejects path traversal in file paths", async () => {
     const { fn } = happyPath();
     await expect(
-      publishFix({ repo: "Kiy-K/night-shift-demo", branch: "b", baseBranch: "main", files: [{ path: "../evil", content: "x" }], commitMessage: "m", title: "t", body: "b" }, fn),
+      publishFix({ repo: "Kiy-K/sentinel-demo", branch: "b", baseBranch: "main", files: [{ path: "../evil", content: "x" }], commitMessage: "m", title: "t", body: "b" }, fn),
     ).rejects.toThrow(/unsafe path/);
   });
 
@@ -86,7 +86,7 @@ describe("publishFix", () => {
       { match: (u, m) => m === "POST" && u.endsWith("/pulls"), reply: () => okJson({ html_url: "https://github.com/x/y/pull/7" }) },
     ]);
     const res = await publishFix(
-      { repo: "Kiy-K/night-shift-demo", branch: "sentinel/fix-1", baseBranch: "main",
+      { repo: "Kiy-K/sentinel-demo", branch: "sentinel/fix-1", baseBranch: "main",
         files: [{ path: "src/add.ts", content: "fixed" }],
         commitMessage: "fix", title: "Fix the thing", body: "body" },
       fn,
@@ -107,7 +107,7 @@ describe("publishFix", () => {
       { match: (u, m) => m === "GET" && u.includes("/pulls?head="), reply: () => okJson([{ html_url: "https://github.com/x/y/pull/7" }]) },
     ]);
     const res = await publishFix(
-      { repo: "Kiy-K/night-shift-demo", branch: "sentinel/fix-1", baseBranch: "main",
+      { repo: "Kiy-K/sentinel-demo", branch: "sentinel/fix-1", baseBranch: "main",
         files: [{ path: "src/add.ts", content: "fixed" }],
         commitMessage: "fix", title: "t", body: "b" },
       fn,

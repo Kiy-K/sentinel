@@ -63,7 +63,7 @@ export function parseWorkflowRun(
     return { kind: "ignored", reason: "fork head repo" };
   }
   // Only repositories explicitly allowlisted for this Sprite (default: demo repo).
-  const allowed = (process.env.SENTINEL_ALLOWED_REPOS ?? "Kiy-K/night-shift-demo")
+  const allowed = (process.env.SENTINEL_ALLOWED_REPOS ?? "Kiy-K/sentinel-demo")
     .split(",").map((s) => s.trim()).filter(Boolean);
   const repo = p.repository?.full_name ?? "";
   if (!allowed.includes(repo)) {

@@ -64,7 +64,7 @@ Live instance: `https://sentinel-bjvbt.sprites.app` (`GET /healthz` → 200; ~0.
 | `OPENROUTER_API_KEY` | ✅ | — | LLM access for the fix agent (openrouter.ai) |
 | `WEBHOOK_SECRET` | ✅ | — | HMAC secret for the GitHub webhook |
 | `GITHUB_GATEWAY_URL` | ✅ (publish) | — | Sprites gateway URL for the GitHub `git-data` API (auth injected by the gateway) |
-| `SENTINEL_ALLOWED_REPOS` | ✅ | `Kiy-K/night-shift-demo` | Comma-separated `owner/repo` allowlist |
+| `SENTINEL_ALLOWED_REPOS` | ✅ | `Kiy-K/sentinel-demo` | Comma-separated `owner/repo` allowlist |
 | `SENTINEL_MODEL` | — | `openrouter/openrouter/free` | Any OpenRouter model slug |
 | `SENTINEL_DATA_DIR` | — | `./data` | SQLite location (`sentinel.db`, `mastra.db`, clones) |
 | `PORT` | — | `8080` | HTTP port |
@@ -92,7 +92,7 @@ docs/             architecture, decisions (incl. durability), evidence, submissi
 
 ## Hackathon
 
-Fly.io Hacksgiving 2026 (Nov 23–29, https://fly.io/hacksgiving/). Live demo target: the `night-shift-demo` fixture repo — push a broken commit and watch Sentinel open a fix PR. Evidence: `docs/evidence/`.
+Fly.io Hacksgiving 2026 (Nov 23–29, https://fly.io/hacksgiving/). Live demo target: the `sentinel-demo` fixture repo — push a broken commit and watch Sentinel open a fix PR. Evidence: `docs/evidence/`.
 
 ## License
 

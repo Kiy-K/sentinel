@@ -24,7 +24,7 @@ export class PublishError extends Error {}
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 function allowedRepos(): string[] {
-  return (process.env.SENTINEL_ALLOWED_REPOS ?? "Kiy-K/night-shift-demo")
+  return (process.env.SENTINEL_ALLOWED_REPOS ?? "Kiy-K/sentinel-demo")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
