@@ -23,6 +23,20 @@ export const mastra = new Mastra({
   // Default is already 'auto'; set explicitly so a config drift can't silently disable it.
   recovery: { workflows: "auto" },
   server: {
+    // Security headers on every response (Mastra defaults send none but a wildcard CORS header).
+    middleware: [
+      async (c, next) => {
+        await next();
+        c.header("x-content-type-options", "nosniff");
+        c.header("x-frame-options", "DENY");
+        c.header("referrer-policy", "strict-origin-when-cross-origin");
+        c.header(
+          "content-security-policy",
+          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        );
+        if (!c.res.headers.get("cache-control")) c.header("cache-control", "no-cache");
+      },
+    ],
     apiRoutes: [
       registerApiRoute("/healthz", {
         method: "GET",

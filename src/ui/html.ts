@@ -50,15 +50,24 @@ export function layout(title: string, body: string): string {
   .empty { color: #8b949e; padding: 2rem 0; text-align: center; }
   footer { border-top: 1px solid #21262d; margin-top: 2rem; padding: 0.75rem 1.25rem; color: #8b949e; font-size: 0.8rem; }
   footer a { color: #58a6ff; }
-  @media (max-width: 700px) { table { display: block; overflow-x: auto; } }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .skip { position: absolute; left: -9999px; top: 0; background: #1f6feb; color: #fff; padding: 0.4rem 0.8rem; z-index: 10; }
+  .skip:focus { left: 0.5rem; top: 0.5rem; }
+  :focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+  .badge.skipped { color: #d29922; border-color: #d29922; }
+  .table-wrap { overflow-x: auto; }
+  .tagline { color: #8b949e; font-size: 0.8rem; margin: -0.5rem 0 1rem; }
+  table { caption-side: top; }
+  caption { text-align: left; color: #8b949e; font-size: 0.8rem; padding-bottom: 0.4rem; }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="top"><a class="brand" href="/">Sentinel <span>Night Shift</span></a><span class="mono" style="color:#8b949e;font-size:0.8rem">ops</span></header>
-<main>
+<main id="main">
 ${body}
 </main>
-<footer><a href="/healthz">/healthz</a> · read-only ops view</footer>
+<footer>Sentinel Night Shift — CI failure → reproduce → fix → PR, unattended. Read-only <a href="/healthz">ops view</a>.</footer>
 </body>
 </html>`;
 }

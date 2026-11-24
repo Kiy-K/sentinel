@@ -61,6 +61,17 @@ function statusOf(i: IncidentRow): string {
   return i.status ?? "running";
 }
 
+function actionsRunUrl(repo: string | null, runId: number | null): string | null {
+  if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !Number.isFinite(runId)) return null;
+  return `https://github.com/${repo}/actions/runs/${runId}`;
+}
+
+function shaCell(i: IncidentRow): string {
+  const url = actionsRunUrl(i.repo ?? null, i.runId ?? null);
+  const sha = shortSha(i.sha);
+  return url ? `<a href="${escapeHtml(url)}" rel="noreferrer noopener" title="Open workflow run">${sha}</a>` : sha;
+}
+
 export function renderDashboard(incidents: IncidentRow[]): string {
   const rows = incidents
     .map((i) => {
@@ -70,10 +81,10 @@ export function renderDashboard(incidents: IncidentRow[]): string {
         : "—";
       return `<tr>
   <td><a href="/incidents/${encodeURIComponent(i.deliveryId)}">${escapeHtml(i.repo ?? "—")}</a></td>
-  <td class="mono">${shortSha(i.sha)}</td>
+  <td class="mono">${shaCell(i)}</td>
   <td>${escapeHtml(i.branch ?? "—")}</td>
   <td><span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span></td>
-  <td>${i.reproduced ? "✓" : "✗"}</td>
+  <td><span aria-hidden="true">${i.reproduced ? "✓" : "✗"}</span><span class="sr-only">${i.reproduced ? "reproduced" : "not reproduced"}</span></td>
   <td>${pr}</td>
   <td class="mono">${escapeHtml(i.createdAt ?? "—")}</td>
 </tr>`;
@@ -84,13 +95,14 @@ export function renderDashboard(incidents: IncidentRow[]): string {
     incidents.length === 0
       ? `<h1>Incidents</h1><p class="empty">No incidents recorded yet.</p>`
       : `<h1>Incidents</h1>
-<table>
-<thead><tr><th>Repo</th><th>SHA</th><th>Branch</th><th>Status</th><th>Repro</th><th>PR</th><th>Created</th></tr></thead>
+<p class="tagline">CI failures an agent reproduced, fixed, and opened a PR for.</p>
+<div class="table-wrap"><table>
+<caption>Incidents, newest first</caption>
+<thead><tr><th scope="col">Repo</th><th scope="col">SHA</th><th scope="col">Branch</th><th scope="col">Status</th><th scope="col">Repro</th><th scope="col">PR</th><th scope="col">Created</th></tr></thead>
 <tbody>
 ${rows}
 </tbody>
-</table>
-<meta http-equiv="refresh" content="5">`;
+</table></div>`;
 
   return layout("Dashboard", body);
 }
@@ -119,7 +131,7 @@ export function renderIncident(
   <dt>SHA</dt><dd class="mono">${escapeHtml(incident.sha ?? "—")}</dd>
   <dt>Branch</dt><dd>${escapeHtml(incident.branch ?? "—")}</dd>
   <dt>Workflow</dt><dd>${escapeHtml(incident.workflow ?? "—")}</dd>
-  <dt>Run ID</dt><dd class="mono">${incident.runId ?? "—"}</dd>
+  <dt>Run ID</dt><dd class="mono">${incident.runId == null ? "—" : (actionsRunUrl(incident.repo ?? null, incident.runId) ? `<a href="${escapeHtml(actionsRunUrl(incident.repo ?? null, incident.runId)!)}" rel="noreferrer noopener">${incident.runId} ↗</a>` : incident.runId)}</dd>
   <dt>Reproduced</dt><dd>${incident.reproduced ? "✓ yes" : "✗ no"}</dd>
   <dt>Test exit code</dt><dd class="mono">${incident.testExitCode ?? "—"}</dd>
   <dt>Created</dt><dd class="mono">${escapeHtml(incident.createdAt ?? "—")}</dd>
@@ -139,13 +151,15 @@ ${
     : ""
 }
 <h2>Live events</h2>
-<pre id="log"></pre>
+<pre id="log" role="log" aria-live="polite" aria-label="Live fix log">Waiting for live events…</pre>
 <script>
 (function () {
   var log = document.getElementById("log");
+  var first = true;
   var es = new EventSource("/incidents/${encodeURIComponent(id)}/events");
   es.onmessage = function (ev) {
     try {
+      if (first) { log.textContent = ""; first = false; }
       var e = JSON.parse(ev.data);
       var line = "[" + (e.ts || "") + "] " + (e.kind || "event") + ": " + (e.message || "") + "\\n";
       log.appendChild(document.createTextNode(line));
@@ -208,7 +222,10 @@ function sseResponse(c: Context, deliveryId: string): Response {
   });
 }
 
-type Route = { path: string; method: "GET"; handler: (c: Context) => unknown };
+type Route = { path: string; method: "GET"; handler: (c: Context, next?: () => Promise<void>) => unknown };
+
+// Paths owned by Mastra itself; our catch-all must fall through to them.
+const FRAMEWORK_PREFIXES = ["/api", "/swagger-ui", "/openapi.json", "/health"];
 
 export function uiRoutes(): Route[] {
   return [
@@ -254,6 +271,24 @@ export function uiRoutes(): Route[] {
         );
         if (!result) return c.html(layout("Not found", `<h1>404</h1><p>No incident <code>${escapeHtml(id)}</code>.</p><p><a href="/">← back</a></p>`), 404);
         return c.html(renderIncident(result.incident, result.fix));
+      },
+    },
+    {
+      // Branded 404 for everything else (replaces the framework's default welcome page).
+      path: "*",
+      method: "GET",
+      handler: (c: Context, next?: () => Promise<void>) => {
+        const p = c.req.path;
+        if (FRAMEWORK_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`))) {
+          return next?.();
+        }
+        return c.html(
+          layout(
+            "Not found",
+            `<h1>404 — not found</h1><p>No page at <code>${escapeHtml(p)}</code>.</p><p><a href="/">← back to incidents</a></p>`,
+          ),
+          404,
+        );
       },
     },
   ];
