@@ -4,7 +4,7 @@ Measurable, verifiable. "Done" = every box checked with evidence linked.
 
 ## A. Functional (must ALL pass)
 
-- [ ] A1. Fresh clone of repo on a clean machine builds and runs with `bun install && bun dev` (README quickstart ≤ 10 min).
+- [ ] A1. Fresh clone deploys in ≤10 min: `bun install && bunx mastra build && bun .mastra/output/index.mjs` (README quickstart).
 - [ ] A2. Sprite deployed; `curl https://<sprite>/healthz` returns 200; agent reports `{uptime, version, checkpointCount}`.
 - [ ] A3. Firing the demo failure (push to demo repo / workflow re-run) reaches the sprite and is logged as an incident row in SQLite.
 - [ ] A4. Agent reproduces the failure locally in the sandbox and captures the failing test output in the incident record.

@@ -1,6 +1,7 @@
 # Architecture — Sentinel Night Shift (Hacksgiving 2026)
 
 Status: proposed for user sign-off (P0). Date: 2026-11-24.
+Mastra ground truth: `docs/research/mastra-digest.md` (verified against mastra.ai docs + npm, 2026-11-24).
 
 ## One-liner
 
@@ -9,66 +10,76 @@ A GitHub-connected agent that sleeps on a Fly.io Sprite at ~$0, wakes when CI go
 ## System diagram
 
 ```
-GitHub repo (demo target)                Sprite (microVM, sleeps at $0)
-┌──────────────────┐   webhook    ┌───────────────────────────────────────┐
-│ workflow_run /   │────────────▶ │ Bun :8080 — webhook receiver          │
-│ check_run failed │  HMAC-verified│  1. wake → verify → filter failures   │
-└──────────────────┘              │  2. job = {repo, sha, run_id}         │
-        ▲                         │  3. clone (anonymous, public repo)    │
-        │                         │  4. bun test → capture failure        │
-        │ connector gateway       │  5. agent loop: patch → re-test (≤3)  │
-        │ (token never in Sprite) │  6. push fix branch + open PR via     │
-        └─────────────────────────┤     GitHub git-data API (blobs/trees) │
-              ┌──────────────────▶│  7. Sprite checkpoint (fs snapshot)   │
-              │                   │  8. email digest via AgentMail        │
-              │ email connector   └───────────────────────────────────────┘
-              ▼
-        You, 06:30
+GitHub repo (demo target)            Sprite (microVM, sleeps at $0)
+┌──────────────────┐   webhook  ┌──────────────────────────────────────┐
+│ workflow_run     │──────────▶ │ Mastra app (Hono via `mastra build`,  │
+│ conclusion=fail  │ HMAC 256   │  Bun process) on Sprite              │
+└──────────────────┘            │  apiRoute POST /webhooks/github      │
+        ▲                       │   → verifies HMAC, dedupes delivery  │
+        │ connector gateway     │   → workflow.createRun().start()     │
+        │ (no token in Sprite)  │ Workflow: reproduce → agent fix      │
+        └───────────────────────┤   loop (≤3) → open PR → email digest │
+                                │ State: LibSQL file (/data/mastra.db) │
+                                │ Snapshots → survives restarts        │
+                                └───────┬──────────────────────────────┘
+                                        ▼
+                          You, 06:30 — "PR #47 opened for you"
 ```
 
 ## Components & decisions
 
 | # | Decision | Choice | Why |
 |---|---|---|---|
-| A1 | Runtime | Bun on the Sprite, `Bun.serve()` on :8080 | Native in Sprites env; matches repo toolchain |
-| A2 | Agent framework | `mastra@1.40.x` + `@mastra/core@1.85.x`, Agent + tools only (no workflow engine); zod for tool schemas | User-recommended; spike-verified import/run under Bun; fallback = raw OpenRouter fetch + zod if the loop fights us >2h |
-| A3 | LLM access | OpenRouter **managed connector**, one-click, $0 (Hacksgiving-eligible auth path); model: free-tier coder (e.g. `qwen/qwen3-coder:free`-class, pick at build time); pin by availability | No key enters env; deny-by-default gateway |
-| A4 | GitHub access | GitHub OAuth **connector** (user authorizes once); clone via anonymous HTTPS (demo repo public); all writes via git-data API: `POST /git/blobs|trees|commits|refs`, `POST /pulls`. Zero tokens in the Sprite | Keeps the "no credentials in the sandbox" story; fallback if gateway blocks git-data writes: fine-grained PAT scoped to the demo repo only, user-approved, rotated after event |
-| A5 | State | SQLite (`bun:sqlite`) on Sprite disk: incidents, attempts, PR links. Filesystem = incident workspace, checkpointed after each success | Sprites: filesystem persists across sleep; checkpoint = the "undo" story |
-| A6 | Scheduling | No cron on Sprite. Morning digest (optional stretch) via `repository_dispatch` cron in the demo repo hitting a `/digest` endpoint; v1 sends digest immediately on incident close | Zero new infrastructure; GitHub is the scheduler we already trust |
-| A7 | Email | AgentMail connector (agent-native inbox; the "your agent has its own email" demo beat); fallback Resend connector | Both free tier; connector keeps keys out |
-| A8 | Sleep/wake | Sprites hibernation: webhook POST wakes the VM; auto-sleep after ~inactivity. Demo shows $0/hr idle | Core "Fly-native" differentiator vs other hackathon agents |
-| A9 | Demo target | Dedicated public demo repo (created only with user OK) with a seeded flaky/broken test; agent fixes it on camera | Honest, reproducible; user's real repos untouched |
-| A10 | Observability | Structured logs to stdout (Sprite console) + checkpoint IDs recorded in SQLite; no external APM | YAGNI for 25h budget |
+| A1 | Runtime & serving | Mastra `server.apiRoutes` on the built app (`mastra build` → `.mastra/output/index.mjs`, run with Bun); webhook = `registerApiRoute('/webhooks/github', …)` from `@mastra/core/server` | Documented first-class path — raw `Bun.serve` + Mastra internals is not supported; custom routes via apiRoutes are |
+| A2 | Agent + durability | **Workflow-wrapped agent**: `createWorkflow` steps `reproduce → fix-loop → publish → notify`; the LLM agent lives inside the fix step. Workflow snapshots (LibSQL) make runs restart-safe; `agent.generate()` alone is NOT restart-safe | Mastra durability lives at workflow layer only (digest §1). Steps get `suspend()/resume()` free if we later want human-in-the-loop |
+| A3 | Libs | `@mastra/core@1.85.0` + `@mastra/libsql@1.31.1` + `zod@^4` only. NO `@mastra/sprites` (wrong layer — we ARE the Sprite), NO `@openrouter/ai-sdk-provider` (router string suffices), NO Mastra Cloud/DuckDB/OTel | Digest §4/§5/§7; smallest dependency surface on a 1.x-churn framework |
+| A4 | LLM access | **Option A (preferred):** Sprites managed OpenRouter connector — workflow step calls the gateway URL with `fetch`, key never in Sprite env. **Option B (fallback):** `openrouter/<provider>/<model>:free` model string + `OPENROUTER_API_KEY` env on the Sprite. Decide Day-1 spike (≤1h); Option B is simpler, A is strictly more secure | Digest §4 + sprites-deep-dive; connector usage pattern for raw HTTP unverified — timebox the spike, take B if A fights |
+| A5 | Model choice | Free-tier instruct/coder on OpenRouter (e.g. `qwen/qwen3-coder:free`-class). Pre-screen 2–3 candidates on the fixture Day 3; pin winner by exact slug; `:free` availability verified live | Free, no spend (D3); quality adequate for one-file fixture fixes |
+| A6 | GitHub access | GitHub OAuth **connector** (user authorizes once); repo cloned anonymously over HTTPS (demo repo public); ALL writes via git-data API through the gateway: `POST /git/blobs\|trees\|commits\|refs`, `POST /pulls`, `POST /repos/.../comments`. Zero GitHub tokens in Sprite | Keeps the "no credentials in sandbox" story. Fallback if gateway blocks git-data writes: fine-grained PAT scoped to demo repo only, user-approved, rotated after event (A4-style fallback) |
+| A7 | State | LibSQL file at ABSOLUTE path (`file:/data/mastra.db`) — workflow snapshots + Mastra storage. Incident ledger (delivery_id dedupe, PR links, timings) = `sentinel.db` via `bun:sqlite`, same dir | Absolute path per Mastra docs (multi-process `mastra dev`/build caveat); two files, both inspectable with `sqlite3` |
+| A8 | Scheduling | No Sprite cron. Digest email fires immediately on incident close; optional 06:30 digest via `repository_dispatch` + `schedule:` cron in the DEMO repo hitting `/digest` (stretch, S1) | Zero new infrastructure; GitHub is the scheduler we already trust |
+| A9 | Email | AgentMail connector ("your agent has its own inbox" demo beat); fallback Resend connector (100/day free) | Both free tier; gateway keeps keys out (digest §connectors) |
+| A10 | Demo target | Dedicated public demo repo created ONLY with user OK (U2); seeded broken test (deterministic assertion failure, NOT time-based flake) | Honest, reproducible; user repos untouched |
+| A11 | Observability | Mastra built-in span logs to stdout (Sprite console shows them) + incident ledger rows; NO external APM | Digest §7; YAGNI |
+| A12 | Checkpoint story | After PR opens, call Sprite checkpoint; `sprite restore` demonstrated in rehearsal (A9 in acceptance criteria) | Sprite-native "undo" — the unfair advantage vs other agents |
+
+## Mastra execution model (the part most likely to be botched)
+
+- `new Mastra({ storage: new LibSQLStore({ id: 'mastra', url: 'file:/data/mastra.db' }), workflows: { incidentWorkflow }, agents: {...}, server: { port: env.PORT ?? 4111, apiRoutes: [...] } })` — `storage`/`workflows`/`server` MUST be direct constructor props or `mastra build` silently drops them.
+- Workflow shape: `createWorkflow({ id: 'incident', inputSchema, outputSchema }).then(reproduce).then(fixLoop).then(publish).then(notify).commit()`.
+- Webhook handler (apiRoute): verify HMAC → dedupe `delivery_id` (insert into `sentinel.db`; if exists return 200) → `mastra.getWorkflow('incident').createRun().start({ inputData })` → return 202 immediately; work continues in-process (Sprite stays awake until step idle → auto-sleep).
+- Fix step: Mastra `Agent` with tools `{ readFile, writeFile, runTests, gitDiff }` (paths jailed to the clone dir). Loop ≤3 iterations inside the step; each iteration = one `agent.generate` call (structured output: `{ status, rationale }` — verify exact `structuredOutput` key against /reference/agents/generate.md at build time).
+- Tool tests don't need an LLM: call `tool.execute(input)` directly — this is the deterministic test seam (digest §9).
+- Verification-at-build checklist (30 min spike, Day 1): exact `stopWhen`/`maxSteps` key, `structuredOutput` key, `OPENROUTER_API_KEY` var name, `:free` slug availability, `registerApiRoute` import path, `.mastra/output/index.mjs` boots under `bun`.
 
 ## Data flow (failure → PR)
 
-1. Workflow fails on demo repo → GitHub sends `workflow_run` (completed, conclusion=failure) to Sprite URL.
-2. Sprite wakes; verifies `X-Hub-Signature-256` (webhook secret env var — our own app secret, not a user credential).
-3. Job row inserted (`status=triage`). Clone `--depth 50` at head SHA; `bun install && bun test` → capture failing test output.
-4. Agent (Mastra Agent, ≤3 iterations): propose edit → apply → re-run tests. Success = suite green.
-5. On green: create blobs/tree/commit via connector, branch `sentinel/fix-<run_id>`, open PR referencing the failed run. Checkpoint Sprites FS.
-6. On failure after 3 iterations: open PR comment instead: diagnosis + what was tried. Never merge, never force-push, never touch `main` directly.
-7. Email digest via AgentMail: what failed, what was tried, link to PR. $0 while asleep.
+1. `workflow_run` (conclusion=failure) hits `POST /webhooks/github`; HMAC ✓, delivery dedupe ✓ → 202.
+2. `reproduce` step: clone `--depth 50` at head SHA (anonymous HTTPS), `bun install && bun test` → capture failing output.
+3. `fixLoop` step: agent reads failing output + files → edits → re-runs tests. Green → proceed. 3 failed iterations → skip to step 5 with `diagnosis` instead of code.
+4. `publish` step (writes): blobs → tree → commit (branch `sentinel/fix-<run_id>`) via connector; open PR referencing the failed run; never pushes to default branch; no merge endpoint is ever called.
+5. `notify` step: digest email via connector with failure summary, PR link (or "not fixable in 3 tries"), iteration count; write ledger row; Sprite checkpoint.
 
 ## Security posture
 
-- Connector gateway holds GitHub/OpenRouter/AgentMail auth; deny-by-default allowlists opened only for the endpoints above.
-- Sprite env contains only: `WEBHOOK_SECRET`, connector handles. No LLM keys, no GitHub tokens.
-- Webhook HMAC verification mandatory; replay protection via delivery-ID dedupe in SQLite.
-- Agent sandbox: writes confined to the cloned repo dir; no network except the connector gateway (enforced by gateway, not by policy prose).
-- Hard limit: agent cannot merge PRs or push to `main` — there is no code path for it.
+- Gateway allowlist opened ONLY for: `repos/…/tarball` (if needed), `git/blobs|trees|commits|refs`, `pulls`, `issues/{id}/comments`, AgentMail send. Documented in README.
+- Sprite env: `WEBHOOK_SECRET` + gateway handles only. `env` audit is acceptance criterion A3.
+- Webhook: HMAC-SHA256, replay dedupe, 401 on mismatch.
+- Agent filesystem jail: all file tools resolve inside `/work/<run_id>/`; path traversal rejected.
+- No merge, no force-push, no default-branch writes — not in code, not in allowlist.
+- Secret in git? `git log -p | grep -iE 'token|secret|key'` gate before submission (D3 audit).
 
 ## Failure modes & mitigations
 
 | Failure | Mitigation |
 |---|---|
-| Sprite cold start during demo | Pre-warm before recording; webhook re-delivery via "re-run failed jobs" button |
-| Connector blocks git-data API | Fallback A4 path (scoped PAT, user-approved); decide day 1 |
-| LLM can't fix in 3 tries | Honest fallback PR comment with diagnosis — still a complete demo |
-| Flaky fixture misfires | Fixture failure is deterministic (broken assertion), not time-based |
-| Free model too weak | Pre-screen 2–3 candidate free models on the fixture during build; pin the winner |
+| Sprite cold start during demo | Pre-warm before recording; re-run failed job button re-fires webhook |
+| Connector blocks git-data or tarball endpoint | Day-1 spike decides A4/A6 fallback (PAT scoped to demo repo, user-approved) |
+| Free model can't fix the fixture | Pre-screen 2–3 free slugs Day 3; worst case ship "diagnosis-only" mode honestly labeled (acceptance B-path still demonstrates wake→analyze→notify) |
+| Mastra 1.x API drift | All API points flagged `⚠ verify at build` above; reference pages over blog posts; pin exact versions |
+| Demo-day network/LLM outage | Recorded fallback video is a required submission artifact anyway (C2) |
+| Snapshot restore on restart lands mid-incident | Acceptable: rerun is idempotent (branch name derived from run_id; dedupe on delivery_id) |
 
 ## Explicitly out of scope (v1)
 
-Slack/Teams, multi-repo, watching Issues (stretch), auto-merge, memory beyond SQLite, any paid API.
+Slack/Teams, multi-repo, issue watching, auto-merge, cross-incident memory, paid APIs, fixing arbitrary repos (fixture-calibrated only).

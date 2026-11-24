@@ -10,6 +10,7 @@ Raw agent outputs live in `raw/`. Synthesized findings are referenced from the d
 | `raw/connector-matrix.md` | researcher | Connector friction/feasibility matrix; recommended set: GitHub + OpenRouter + email (AgentMail/Resend); avoid paid rails on critical path |
 | `raw/sprites-deep-dive.md` | researcher | Sprites platform mechanics: pricing, checkpoints (fs-only), connectors deny-by-default, GitHub OAuth + OpenRouter managed connector, port 8080 public URL |
 | `raw/prior-art.md` | researcher | Prior art + judging intel: no prior Fly hackathons; Fly wants shareable Sprite demos; weird/persistent/long-running agents stand out; checkpoint/restore + multi-Sprite are underexploited; tag @flydotio |
+| `mastra-digest.md` | researcher | Mastra 1.x verified against docs+npm: workflows-not-agents hold durability; `mastra build` + `apiRoutes`; LibSQL file snapshots; skip @mastra/sprites; OpenRouter via router string; install list + sharp edges |
 
 ## P0 docs map
 
