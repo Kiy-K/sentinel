@@ -4,6 +4,7 @@ import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { reproduceFailure, incidentWorkDir } from "../../incidents/reproduce";
+import { resolveWithin } from "../../agent/jail";
 import { recordIncident as persistIncident, recordFix, recordPublish } from "../../incidents/store";
 import { publishFix } from "../../github/publish";
 import { sentinelDbPath } from "../../webhooks/dedupe";
@@ -147,7 +148,11 @@ const publish = createStep({
     const workDir = incidentWorkDir(incident.deliveryId);
     const files: { path: string; content: string }[] = [];
     for (const rel of inputData.filesChanged) {
-      files.push({ path: rel, content: await readFile(join(workDir, rel), "utf8") });
+      const resolved = resolveWithin(workDir, rel);
+      if (!resolved) {
+        throw new Error(`refusing to publish path outside work dir: ${JSON.stringify(rel)}`);
+      }
+      files.push({ path: resolved.rel, content: await readFile(resolved.abs, "utf8") });
     }
     const branch = `sentinel/fix-${incident.runId}`;
     const body = [

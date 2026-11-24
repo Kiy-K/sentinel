@@ -1,5 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { detectInstallCommand, detectTestCommand, minimalEnv } from "./runner";
 
 export type ReproduceIncident = {
   deliveryId: string;
@@ -29,7 +30,11 @@ export function incidentWorkDir(deliveryId: string): string {
   return join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", deliveryId);
 }
 
-export type ReproduceOptions = { run?: RunFn };
+export type ReproduceOptions = {
+  run?: RunFn;
+  /** Override install/test command detection (tests, unusual repos). `null` skips the install step. */
+  commands?: { install?: string[] | null; test?: string[] };
+};
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const DELIVERY_ID_RE = /^[A-Za-z0-9-]+$/;
@@ -45,7 +50,8 @@ const INSTALL_TIMEOUT_MS = 120_000;
 const TEST_TIMEOUT_MS = 300_000;
 
 function defaultRun(cmd: string[], cwd: string, timeoutMs: number): RunResult {
-  const proc = Bun.spawnSync({ cmd, cwd, stdout: "pipe", stderr: "pipe", timeout: timeoutMs });
+  // Repo code is untrusted: run it with a scrubbed env, never our secrets.
+  const proc = Bun.spawnSync({ cmd, cwd, stdout: "pipe", stderr: "pipe", timeout: timeoutMs, env: minimalEnv() });
   const output =
     proc.stdout.toString() +
     proc.stderr.toString() +
@@ -103,19 +109,25 @@ export function reproduceFailure(
       }
     }
 
-    const install = run(["bun", "install", "--ignore-scripts"], workDir, INSTALL_TIMEOUT_MS);
-    output += install.output;
-    if (install.exitCode !== 0) {
-      return {
-        reproduced: false,
-        testExitCode: null,
-        installOk: false,
-        outputTail: tail(output),
-        error: `bun install failed (exit ${install.exitCode})`,
-      };
+    const installCmd =
+      opts?.commands && "install" in opts.commands ? (opts.commands.install ?? null) : detectInstallCommand(workDir);
+    if (installCmd) {
+      const install = run(installCmd, workDir, INSTALL_TIMEOUT_MS);
+      output += install.output;
+      if (install.exitCode !== 0) {
+        return {
+          reproduced: false,
+          testExitCode: null,
+          installOk: false,
+          outputTail: tail(output),
+          error: `${installCmd.join(" ")} failed (exit ${install.exitCode})`,
+        };
+      }
+    } else {
+      output += "[skip] no dependency install detected\n";
     }
 
-    const test = run(["bun", "test"], workDir, TEST_TIMEOUT_MS);
+    const test = run(detectTestCommand(workDir), workDir, TEST_TIMEOUT_MS);
     output += test.output;
     return {
       reproduced: test.exitCode !== 0,

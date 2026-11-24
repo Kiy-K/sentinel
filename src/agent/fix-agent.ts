@@ -13,6 +13,7 @@ import { z } from "zod";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveWithin, writeFileJailed } from "./jail";
+import { detectTestCommand, minimalEnv } from "../incidents/runner";
 
 const MAX_OUTPUT = 8000;
 const MAX_FILE_BYTES = 64 * 1024;
@@ -28,11 +29,12 @@ const tail = (s: string, n = MAX_OUTPUT): string =>
 function runTests(cwd: string): { exitCode: number; output: string } {
   try {
     const proc = Bun.spawnSync({
-      cmd: ["bun", "test"],
+      cmd: detectTestCommand(cwd),
       cwd,
       stdout: "pipe",
       stderr: "pipe",
       timeout: TEST_TIMEOUT_MS,
+      env: minimalEnv(),
     });
     return {
       exitCode: proc.exitCode ?? 1,

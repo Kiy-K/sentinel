@@ -98,10 +98,10 @@ describe("reproduceFailure", () => {
   test("install failure returns error, never throws", () => {
     const run: RunFn = (cmd) =>
       cmd[1] === "install" ? { exitCode: 1, output: "resolution error" } : { exitCode: 0, output: "" };
-    const res = reproduceFailure(incident, { run });
+    const res = reproduceFailure(incident, { run, commands: { install: ["bun", "install"] } });
     expect(res.reproduced).toBe(false);
     expect(res.installOk).toBe(false);
-    expect(res.error).toContain("bun install failed");
+    expect(res.error).toContain("install failed");
   });
 
   test("outputTail is truncated to the last 8000 chars", () => {
