@@ -20,6 +20,6 @@ Checkpoint: `sprite checkpoint create` → **v8** ("post D7+D8 deploy"). Restore
 
 Known caveats:
 
-- Digest email unverified end-to-end (no `DIGEST_TO` set on the sprite yet; AgentMail send endpoint shape unverified). No email has been sent.
+- Digest email: one live send verified 2026-11-24 to khoitruong071510@gmail.com from sentinelbot@agentmail.to ("[Sentinel] Fixed Kiy-K/night-shift-demo (ci) — PR opened", status 200, visible in inbox via API with label `sent`). `DIGEST_TO` + `AGENTMAIL_API_KEY` added to `~/sentinel/.env`; service restarted and healthy. Note: send endpoint shape confirmed against docs (`POST /v0/inboxes/{inbox_id}/messages/send`, `{to, subject, text}`) — the "unverified" caveat above is resolved.
 - Idle-$0 cost evidence and Sprite checkpoint/restore for the demo still pending.
 - UI is not browser-verified (no screenshot pass yet).
