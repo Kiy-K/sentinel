@@ -1,18 +1,12 @@
 {
-  "name": "sentinel",
-  "module": "index.ts",
+  "name": "sentinel-nightshift",
+  "version": "0.1.0",
   "type": "module",
-  "private": true,
   "scripts": {
-    "typecheck": "bun check"
+    "dev": "bun --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir dist",
+    "test": "bun test"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
-  },
-  "dependencies": {
-    "@mastra/sprites": "^0.1.2"
-  }
+  "license": "MIT"
 }
