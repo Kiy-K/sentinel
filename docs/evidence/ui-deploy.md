@@ -23,3 +23,10 @@ Known caveats:
 - Digest email: one live send verified 2026-11-24 to khoitruong071510@gmail.com from sentinelbot@agentmail.to ("[Sentinel] Fixed Kiy-K/night-shift-demo (ci) — PR opened", status 200, visible in inbox via API with label `sent`). `DIGEST_TO` + `AGENTMAIL_API_KEY` added to `~/sentinel/.env`; service restarted and healthy. Note: send endpoint shape confirmed against docs (`POST /v0/inboxes/{inbox_id}/messages/send`, `{to, subject, text}`) — the "unverified" caveat above is resolved.
 - Idle-$0 cost evidence and Sprite checkpoint/restore for the demo still pending.
 - UI is not browser-verified (no screenshot pass yet).
+
+## Restore drill (D9, 2026-11-24)
+
+- Pre-restore safety checkpoint created: **v9** ("pre-restore backup (post digest env, post UI deploy)").
+- `sprite restore -s sentinel v8` → success. Filesystem rolled back to post-deploy state (confirmed: `DIGEST_TO`/`AGENTMAIL_API_KEY` absent from `.env`, bun process terminated, `data/` ledger intact — incident `97ebcf7e…` still present after restore).
+- Post-restore: re-applied digest env vars, restarted `bun .mastra/output/index.mjs`, verified `/healthz` 200, `/` 200, `/incidents.json` serving the same incident.
+- Caveat: restore terminates running processes and the app has no watchdog — a manual restart is required after every restore/deploy. Consider a unit/cron keepalive before demo day.
