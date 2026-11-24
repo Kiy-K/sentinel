@@ -51,6 +51,8 @@ bunx mastra build               # → .mastra/output
 bun .mastra/output/index.mjs
 ```
 
+After every deploy, verify: `curl https://sentinel-bjvbt.sprites.app/healthz`, then `bun run test:e2e:live` (agentic real-user pass against the live app; needs the e2e ChatGPT login). Restart the app manually after any restore — there is no watchdog.
+
 Set `PORT=8080` and expose the Sprite URL. See `docs/` for the full runbook and the deploy checklist.
 
 Live instance: `https://sentinel-bjvbt.sprites.app` (`GET /healthz` → 200; ~0.7s warm — Sprites sleep when idle, so the first request after idle is the cold path; `curl /healthz` before a demo).
