@@ -64,19 +64,42 @@ const fix = createStep({
     if (!inputData.reproduced) {
       return { ok: inputData.ok, note: inputData.note, reproduced: false };
     }
-    const result = await runFixLoop({
-      workDir: incidentWorkDir(incident.deliveryId),
-      failingOutput: inputData.outputTail,
-      llm: { chatCompletion },
-    });
-    const db = new Database(sentinelDbPath());
     try {
-      recordFix(db, incident.deliveryId, result);
-    } finally {
-      db.close();
+      const result = await runFixLoop({
+        workDir: incidentWorkDir(incident.deliveryId),
+        failingOutput: inputData.outputTail,
+        llm: { chatCompletion },
+      });
+      const db = new Database(sentinelDbPath());
+      try {
+        recordFix(db, incident.deliveryId, result);
+      } finally {
+        db.close();
+      }
+      console.log(`[fix] delivery=${incident.deliveryId} status=${result.status} iterations=${result.iterations}`);
+      return { ok: inputData.ok, note: inputData.note, reproduced: true };
+    } catch (err) {
+      // Never lose the outcome: record a failed fix row, then report the step as failed.
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[fix] delivery=${incident.deliveryId} internal error: ${message}`);
+      try {
+        const db = new Database(sentinelDbPath());
+        try {
+          recordFix(db, incident.deliveryId, {
+            status: "failed",
+            iterations: 0,
+            filesChanged: [],
+            rationale: `internal error: ${message}`,
+            lastOutput: message,
+          });
+        } finally {
+          db.close();
+        }
+      } catch {
+        /* DB down; log is all we have */
+      }
+      return { ok: false, note: `fix step error: ${message}`, reproduced: true };
     }
-    console.log(`[fix] delivery=${incident.deliveryId} status=${result.status} iterations=${result.iterations}`);
-    return { ok: inputData.ok, note: inputData.note, reproduced: true };
   },
 });
 

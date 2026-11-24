@@ -24,9 +24,6 @@ export type GatewayClient = {
   }) => Promise<string>;
 };
 
-const DEFAULT_GATEWAY_URL =
-  "https://api.sprites.dev/v1/gateway/openrouter/YAwjiB-NmlkODCdv-nq7Ug/v1/chat/completions";
-
 const FREE_MODELS = [
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "dots-studio/dots-3-note-preview:free",
@@ -49,7 +46,11 @@ export function createGatewayClient(opts: {
   sleep?: SleepFn;
 }): GatewayClient {
   const fetchImpl = opts.fetchImpl ?? ((globalThis.fetch as unknown) as FetchLike);
-  const baseUrl = opts.baseUrl ?? process.env.OPENROUTER_GATEWAY_URL ?? DEFAULT_GATEWAY_URL;
+  const envUrl = opts.baseUrl ?? process.env.OPENROUTER_GATEWAY_URL;
+  if (!envUrl) {
+    throw new LlmUnavailableError("OPENROUTER_GATEWAY_URL is not set");
+  }
+  const baseUrl: string = envUrl;
   const fallbackModels = opts.models?.length ? opts.models : FREE_MODELS;
   const sleep = opts.sleep ?? defaultSleep;
 
@@ -123,4 +124,10 @@ function backoff(attempt: number): number {
   return base + Math.floor(Math.random() * 250);
 }
 
-export const chatCompletion = createGatewayClient({}).chatCompletion;
+let defaultClient: GatewayClient | undefined;
+function defaultClientLazy(): GatewayClient {
+  if (!defaultClient) defaultClient = createGatewayClient({});
+  return defaultClient;
+}
+export const chatCompletion: GatewayClient["chatCompletion"] = (args) =>
+  defaultClientLazy().chatCompletion(args);

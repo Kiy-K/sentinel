@@ -23,6 +23,9 @@ export type ReproduceResult = {
 };
 
 export function incidentWorkDir(deliveryId: string): string {
+  if (!/^[A-Za-z0-9-]{1,128}$/.test(deliveryId)) {
+    throw new Error(`invalid deliveryId: ${JSON.stringify(deliveryId)}`);
+  }
   return join(process.env.SENTINEL_DATA_DIR ?? "./data", "work", deliveryId);
 }
 
@@ -100,7 +103,7 @@ export function reproduceFailure(
       }
     }
 
-    const install = run(["bun", "install"], workDir, INSTALL_TIMEOUT_MS);
+    const install = run(["bun", "install", "--ignore-scripts"], workDir, INSTALL_TIMEOUT_MS);
     output += install.output;
     if (install.exitCode !== 0) {
       return {

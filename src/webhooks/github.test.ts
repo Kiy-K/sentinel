@@ -52,6 +52,22 @@ describe("parseWorkflowRun", () => {
     }
   });
 
+  test("ignores workflow runs whose head repo is a fork", () => {
+    const forked = {
+      ...payload,
+      workflow_run: {
+        ...payload.workflow_run,
+        head_repository: { full_name: "attacker/night-shift-demo", fork: true },
+      },
+    };
+    expect(parseWorkflowRun("workflow_run", forked, "d-fork").kind).toBe("ignored");
+  });
+
+  test("ignores repos outside the allowlist", () => {
+    const foreign = { ...payload, repository: { full_name: "someone/else" } };
+    expect(parseWorkflowRun("workflow_run", foreign, "d-repo").kind).toBe("ignored");
+  });
+
   test("ignores non-failure conclusions and other events", () => {
     expect(
       parseWorkflowRun("workflow_run", { ...payload, workflow_run: { ...payload.workflow_run, conclusion: "success" } }, "d").kind,

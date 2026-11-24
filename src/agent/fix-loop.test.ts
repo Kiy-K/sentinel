@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -196,5 +197,46 @@ describe("runFixLoop", () => {
     expect(result.iterations).toBe(1);
     expect(result.filesChanged).toEqual(["add.ts"]);
     expect(readFileSync(join(workDir, "add.ts"), "utf8")).toBe(FIXED_ADD);
+  });
+
+  test("rejects writes through a symlink escaping workDir", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "fix-loop-outside-"));
+    symlinkSync(outside, join(workDir, "link"), "dir");
+    const llm = llmReturning([fixJson("link/evil.ts", "pwned")]);
+    const result = await runFixLoop({
+      workDir,
+      failingOutput: "1 fail",
+      llm,
+      runTests: () => ({ exitCode: 1, output: "still failing" }),
+      maxIterations: 1,
+    });
+    expect(result.status).toBe("failed");
+    expect(existsSync(join(outside, "evil.ts"))).toBe(false);
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  test("rejects '.' as a file path without crashing", async () => {
+    const llm = llmReturning([fixJson(".", "x")]);
+    const result = await runFixLoop({
+      workDir,
+      failingOutput: "1 fail",
+      llm,
+      runTests: () => ({ exitCode: 1, output: "still failing" }),
+      maxIterations: 1,
+    });
+    expect(result.status).toBe("failed");
+  });
+
+  test("rejects writes inside .git", async () => {
+    const llm = llmReturning([fixJson(".git/config", "[core]")]);
+    const result = await runFixLoop({
+      workDir,
+      failingOutput: "1 fail",
+      llm,
+      runTests: () => ({ exitCode: 1, output: "still failing" }),
+      maxIterations: 1,
+    });
+    expect(result.status).toBe("failed");
+    expect(existsSync(join(workDir, ".git", "config"))).toBe(false);
   });
 });

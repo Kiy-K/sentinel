@@ -9,6 +9,10 @@ import {
   readFileSync,
   writeFileSync,
   mkdirSync,
+  realpathSync,
+  lstatSync,
+  existsSync,
+  rmSync,
 } from "node:fs";
 import { join, resolve, dirname, sep } from "node:path";
 import type { ChatMessage } from "./llm";
@@ -157,9 +161,10 @@ function resolveWithin(
 ): { abs: string; rel: string } | null {
   const norm = rel.replace(/\\/g, "/");
   if (norm.startsWith("/") || /^[A-Za-z]:/.test(norm)) return null;
+  if (norm.split("/").includes(".git")) return null;
   const root = resolve(workDir);
   const abs = resolve(root, norm);
-  if (abs !== root && !abs.startsWith(root + sep)) return null;
+  if (abs === root || !abs.startsWith(root + sep)) return null;
   return { abs, rel: norm };
 }
 
@@ -235,11 +240,39 @@ export async function runFixLoop(opts: FixLoopOptions): Promise<FixLoopResult> {
       continue;
     }
 
-    for (const f of resolved) {
-      mkdirSync(dirname(f.abs), { recursive: true });
-      writeFileSync(f.abs, f.content);
-      changed.add(f.rel);
+    // Write atomically-ish: snapshot existing files so a mid-write failure can be rolled back.
+    // Also refuse to write through symlinks (norm path is lexical; the worktree may contain them).
+    const backups: { abs: string; before: string | null }[] = [];
+    let writeError: string | null = null;
+    try {
+      const rootReal = realpathSync(workDir);
+      for (const f of resolved) {
+        const dir = dirname(f.abs);
+        mkdirSync(dir, { recursive: true });
+        const dirReal = realpathSync(dir);
+        if (dirReal !== rootReal && !dirReal.startsWith(rootReal + sep)) {
+          throw new Error(`path escapes workDir via symlink: ${f.rel}`);
+        }
+        if (existsSync(f.abs) && lstatSync(f.abs).isSymbolicLink()) {
+          throw new Error(`refusing to write through symlink: ${f.rel}`);
+        }
+        backups.push({ abs: f.abs, before: existsSync(f.abs) ? readFileSync(f.abs, "utf8") : null });
+        writeFileSync(f.abs, f.content);
+      }
+    } catch (err) {
+      for (const b of backups.reverse()) {
+        try {
+          if (b.before === null) rmSync(b.abs, { force: true });
+          else writeFileSync(b.abs, b.before);
+        } catch { /* best effort rollback */ }
+      }
+      writeError = err instanceof Error ? err.message : String(err);
     }
+    if (writeError) {
+      lastOutput = tail(`${lastOutput}\n\nIteration ${iteration}: write failed: ${writeError}`);
+      continue;
+    }
+    for (const f of resolved) changed.add(f.rel);
 
     const result = runTests(workDir);
     lastOutput = tail(result.output);
