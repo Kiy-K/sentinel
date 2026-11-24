@@ -18,6 +18,9 @@ export const mastra = new Mastra({
     id: "sentinel-storage",
     url: `file:${join(dataDir, "mastra.db")}`,
   }),
+  // Pin boot-time recovery: restart RUNNING/WAITING runs from their snapshots on boot.
+  // Default is already 'auto'; set explicitly so a config drift can't silently disable it.
+  recovery: { workflows: "auto" },
   server: {
     apiRoutes: [
       registerApiRoute("/healthz", {
