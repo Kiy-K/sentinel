@@ -14,7 +14,7 @@ import {
   existsSync,
   rmSync,
 } from "node:fs";
-import { join, resolve, dirname, sep } from "node:path";
+import { join, resolve, dirname, sep, relative } from "node:path";
 import type { ChatMessage } from "./llm";
 
 export type FixLlm = {
@@ -246,11 +246,32 @@ export async function runFixLoop(opts: FixLoopOptions): Promise<FixLoopResult> {
     let writeError: string | null = null;
     try {
       const rootReal = realpathSync(workDir);
+      const isInside = (p: string) => p === rootReal || p.startsWith(rootReal + sep);
+      const deepestExistingReal = (target: string): string => {
+        let cur = target;
+        while (true) {
+          if (existsSync(cur)) return realpathSync(cur);
+          const parent = dirname(cur);
+          if (parent === cur) return cur;
+          cur = parent;
+        }
+      };
       for (const f of resolved) {
         const dir = dirname(f.abs);
+        // Validate BEFORE creating anything: the deepest existing ancestor must be inside the jail.
+        const ancestorReal = deepestExistingReal(dir);
+        if (!isInside(ancestorReal)) {
+          throw new Error(`path escapes workDir via symlink: ${f.rel}`);
+        }
+        // .git may be reached via an in-jail symlink; reject any .git segment in the real path.
+        const relFromRoot = f.abs.slice(workDir.length).split(sep).filter(Boolean);
+        const relReal = relative(rootReal, realpathSync(deepestExistingReal(dir))).split(sep).filter(Boolean);
+        if ([...relFromRoot, ...relReal].includes(".git")) {
+          throw new Error(`refusing to write into .git: ${f.rel}`);
+        }
         mkdirSync(dir, { recursive: true });
         const dirReal = realpathSync(dir);
-        if (dirReal !== rootReal && !dirReal.startsWith(rootReal + sep)) {
+        if (!isInside(dirReal)) {
           throw new Error(`path escapes workDir via symlink: ${f.rel}`);
         }
         if (existsSync(f.abs) && lstatSync(f.abs).isSymbolicLink()) {
@@ -260,7 +281,7 @@ export async function runFixLoop(opts: FixLoopOptions): Promise<FixLoopResult> {
         writeFileSync(f.abs, f.content);
       }
     } catch (err) {
-      for (const b of backups.reverse()) {
+      for (const b of [...backups].reverse()) {
         try {
           if (b.before === null) rmSync(b.abs, { force: true });
           else writeFileSync(b.abs, b.before);

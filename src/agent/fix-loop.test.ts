@@ -215,6 +215,38 @@ describe("runFixLoop", () => {
     rmSync(outside, { recursive: true, force: true });
   });
 
+  test("does not create directories outside the jail through a symlinked dir", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "fix-loop-outside-"));
+    symlinkSync(outside, join(workDir, "link"), "dir");
+    const llm = llmReturning([fixJson("link/sub/evil.ts", "pwned")]);
+    const result = await runFixLoop({
+      workDir,
+      failingOutput: "1 fail",
+      llm,
+      runTests: () => ({ exitCode: 1, output: "still failing" }),
+      maxIterations: 1,
+    });
+    expect(result.status).toBe("failed");
+    expect(existsSync(join(outside, "sub"))).toBe(false);
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  test("rejects in-jail symlink pointing at .git", async () => {
+    mkdirSync(join(workDir, ".git"), { recursive: true });
+    writeFileSync(join(workDir, ".git", "config"), "[core]\n");
+    symlinkSync(join(workDir, ".git"), join(workDir, "link"), "dir");
+    const llm = llmReturning([fixJson("link/config", "[core]\npwned\n")]);
+    const result = await runFixLoop({
+      workDir,
+      failingOutput: "1 fail",
+      llm,
+      runTests: () => ({ exitCode: 1, output: "still failing" }),
+      maxIterations: 1,
+    });
+    expect(result.status).toBe("failed");
+    expect(readFileSync(join(workDir, ".git", "config"), "utf8")).toBe("[core]\n");
+  });
+
   test("rejects '.' as a file path without crashing", async () => {
     const llm = llmReturning([fixJson(".", "x")]);
     const result = await runFixLoop({
