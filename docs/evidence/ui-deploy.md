@@ -30,3 +30,13 @@ Known caveats:
 - `sprite restore -s sentinel v8` → success. Filesystem rolled back to post-deploy state (confirmed: `DIGEST_TO`/`AGENTMAIL_API_KEY` absent from `.env`, bun process terminated, `data/` ledger intact — incident `97ebcf7e…` still present after restore).
 - Post-restore: re-applied digest env vars, restarted `bun .mastra/output/index.mjs`, verified `/healthz` 200, `/` 200, `/incidents.json` serving the same incident.
 - Caveat: restore terminates running processes and the app has no watchdog — a manual restart is required after every restore/deploy. Consider a unit/cron keepalive before demo day.
+
+## Fly.io billing check (D9 idle-cost evidence, 2026-11-24)
+
+Via dashboard (fly.io/dashboard/khoi-tr-ng), logged in as khoitruong071510@gmail.com:
+
+- Sprites page: 2 sprites (`sentinel`, `night-shift`), both **cold**; "0 running / 0 warm / 2 cold".
+- Billing: Pay As You Go, Good Standing; last invoice $0.00; upcoming $0.00; Sprites Storage Allowance $0.00 of $0.40 used; Sprites Trial Credit $0.01 of $30.00 used.
+- Usage (Nov 18–24): total spend **$0.01**, daily avg $0.00; Sprites RAM $0.00, CPU $0.00, Hot Storage $0.00.
+
+Conclusion: an idle Sprite costs effectively $0 (only storage cents), consistent with the claim. Screenshots seen live in-session; not yet exported into the repo.
