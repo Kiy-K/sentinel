@@ -1,6 +1,6 @@
 # Architecture — Sentinel Night Shift (Hacksgiving 2026)
 
-Status: proposed for user sign-off (P0). Date: 2026-11-24.
+Status: APPROVED by user 2026-11-24 (Option B still requires fresh approval per D5). Date: 2026-11-24.
 Mastra ground truth: `docs/research/mastra-digest.md` (verified against mastra.ai docs + npm, 2026-11-24).
 
 ## One-liner

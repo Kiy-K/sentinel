@@ -20,6 +20,7 @@ Append-only log of user-approved decisions and constraints. Format: `D<n> (date)
 
 - OQ1: RESOLVED 2026-11-24 — GitHub OAuth + OpenRouter (managed connector) + AgentMail/Resend (see 003 + docs/research/mastra-digest.md).
 - OQ2: RESOLVED 2026-11-24 — Mastra adopted per user directive; see docs/architecture/night-shift.md.
-- OQ3: Demo hosting/visibility (public demo Sprite URL vs recorded video only) — needs user approval before publishing. Blocks demo plan C2/C3, not the build.
+- OQ3: RESOLVED 2026-11-24 — judges get a public Sprite URL (user-approved). Recording still made as backup for C2.
 
+- D13 (2026-11-24): night-shift.md architecture APPROVED by user. Digest email (A7) goes to the user’s own inbox via AgentMail, which the user already configured on the Sprite. Demo = public Sprite URL (OQ3 resolved). OPENROUTER_API_KEY on the Sprite (Option B) NOT pre-approved — ask again if the Day-1 spike fails.
 - D12 (2026-11-24): Build **Night Shift** (Grand Lane) per user decision — see 003-concept-decision.md. Hackathon rules re-verified live 2026-11-24 via curl https://fly.io/hacksgiving/ : Nov 23–29 2026, submissions close midnight PST Nov 29, prizes $2,500 / $1,500 / $1,000.

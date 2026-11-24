@@ -10,7 +10,7 @@ Measurable, verifiable. "Done" = every box checked with evidence linked.
 - [ ] A4. Agent reproduces the failure locally in the sandbox and captures the failing test output in the incident record.
 - [ ] A5. Agent opens a PR from branch `sentinel/fix-<run_id>` containing a fix; PR checks go green on GitHub.
 - [ ] A6. Rehearsal metric: end-to-end failure→PR succeeds in **≤ 10 minutes** in **≥ 4 of 5** rehearsal runs.
-- [ ] A7. Email digest arrives (AgentMail inbox) within 10 min of PR creation, naming failing test, root cause, PR link.
+- [ ] A7. Email digest arrives (AgentMail — user-configured on the Sprite) within 10 min of PR creation, naming failing test, root cause, PR link. Delivered to the user’s own inbox.
 - [ ] A8. Failure-path: if agent cannot fix within 3 attempts, it posts the diagnosis as a commit comment on the failing head SHA (`POST /repos/{repo}/commits/{sha}/comments`) instead of opening a PR; demonstrated once deliberately.
 - [ ] A9. Checkpoint restore demonstrated: snapshot → `rm -rf` agent workspace → restore → service healthy (restore time recorded).
 - [ ] A10. Idle cost: after ≥ 1h idle, Sprites dashboard shows ~$0 accrued (screenshot in repo `docs/evidence/`).
